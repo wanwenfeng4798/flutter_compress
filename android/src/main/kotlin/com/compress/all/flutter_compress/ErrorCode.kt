@@ -23,6 +23,7 @@ internal object ErrorCode {
     const val NO_ENGINE = "no_engine"
     const val BAD_ARGUMENTS = "bad_arguments"
     const val UNSUPPORTED = "unsupported"
+    const val PERMISSION_DENIED = "permission_denied"
 }
 
 /** A required channel argument was absent or had the wrong type. */

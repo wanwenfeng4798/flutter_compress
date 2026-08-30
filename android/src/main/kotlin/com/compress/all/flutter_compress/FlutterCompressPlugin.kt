@@ -111,6 +111,12 @@ class FlutterCompressPlugin :
                 requireNotNull(imageEngine).info(call.str("path"))
             }
 
+            "compressImageBytes" -> dispatch(result, ErrorCode.IMAGE_COMPRESS_FAILED) {
+                val bytes = call.argument<ByteArray>("bytes")
+                    ?: throw BadArgumentException("bytes")
+                requireNotNull(imageEngine).compressBytes(bytes, call.imageConfig())
+            }
+
             "compressImage" -> dispatch(result, ErrorCode.IMAGE_COMPRESS_FAILED) {
                 requireNotNull(imageEngine).compress(
                     call.str("path"),
@@ -147,6 +153,8 @@ class FlutterCompressPlugin :
                             result.error(ErrorCode.CANCELLED, e.message, null)
                         is BadArgumentException ->
                             result.error(ErrorCode.BAD_ARGUMENTS, e.message, null)
+                        is PermissionDeniedException ->
+                            result.error(ErrorCode.PERMISSION_DENIED, e.message, null)
                         // Keep the native detail: it's the only clue to the origin.
                         else -> result.error(errorCode, e.message, e.stackTraceToString())
                     }

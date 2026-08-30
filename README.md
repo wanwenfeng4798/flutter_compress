@@ -25,7 +25,9 @@ bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs
 - 🌍 **One API, three platforms** — the same Dart code runs on Android, iOS **and** the browser (via WebCodecs). Most alternatives skip Web entirely.
 - 🎯 **Hit a target size, precisely** — ask for a size and the plugin derives the bitrate with identical math on every platform.
 - 🎬🖼️ **Video *and* images** — two dedicated, non-overlapping APIs (`compress` vs `compressImage`), each tuned for its medium.
-- 📡 **Production-ready** — live progress, cancellation, sequential batching, background-safe on mobile, and a keep-original-if-larger guard.
+- 📡 **Production-ready** — live progress, cancellation, sequential batching, and a keep-original-if-larger guard.
+- 🧼 **Declares no permissions** — most compression plugins push a foreground-service notification (and its permissions) into every app that depends on them. Here background compression is opt-in and the notification is **yours**: your icon, your copy, your channel.
+- 🚀 **Presets for the common cases** — `forSocialMedia()`, `maxCompression()`, `forAvatar()`; skip the tuning entirely.
 
 ## Under the hood
 
@@ -51,6 +53,8 @@ bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs
 - 🎞️ Formats: **JPEG · PNG · WebP · HEIC** (auto-fallback where unsupported).
 - 📐 Resolution cap and optional **EXIF** keep (orientation, GPS…).
 - ⚡ Millisecond-fast, single-image or batch.
+- 🧠 **Compress bytes in memory** (`compressImageBytes`) — no temp file for an
+  `image_picker` result, a camera frame, or a download.
 
 ## Platform support
 
@@ -67,7 +71,7 @@ bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs
 | Trim (`trim`)                              |          ✅           |         ✅         |        ❌         |
 | Thumbnail / info / estimate                |          ✅           |         ✅         |        ✅         |
 | Progress / cancel / batch                  |          ✅           |         ✅         |        ✅         |
-| Background compression                     | ✅ foreground service | ✅ background task |       n/a        |
+| Background compression                     |   ⚠️ opt-in ⁴         | ✅ background task |       n/a        |
 | `saveToDownloads`                          |      MediaStore      |     Documents     | browser download |
 
 ¹ Web uses HEVC only where the browser supports WebCodecs HEVC encoding
@@ -80,6 +84,12 @@ bitrate/keyframe maths. Read `result.frameRate` for what was actually written.
 ³ Media3 1.4.x exposes no audio-encoder settings, so Android encodes AAC at its
 own default. The value still shapes the `targetSizeMB` budget.
 
+⁴ Android needs a foreground service, and its notification must be yours — pass
+`androidNotification` and declare `FOREGROUND_SERVICE`. Without either, the encode
+runs foreground-only; nothing throws. See
+[Background compression on Android](#background-compression-on-android). iOS needs
+nothing (`beginBackgroundTask`: no UI, no permission).
+
 Anything marked ❌ is **ignored**, not approximated — the result object reports what
 actually happened (`result.frameRate`, `result.hasAudio`, `result.durationMs`).
 
@@ -91,17 +101,22 @@ actually happened (`result.frameRate`, `result.hasAudio`, `result.durationMs`).
 | JPEG / PNG / WebP                       |     ✅      |     ✅     |        ✅         |
 | HEIC                                    |    ⚠️ ¹    |     ✅     |        ❌         |
 | Resolution cap (`maxWidth`/`maxHeight`) |     ✅      |     ✅     |        ✅         |
-| Keep EXIF (`keepExif`)                  |   ⚠️ JPEG only |  ✅   |        ❌         |
+| Keep EXIF (`keepExif`)                  | ⚠️ JPEG only ² |  ✅   |        ❌         |
+| Compress bytes (`compressImageBytes`)   |     ✅      |     ✅     |        ✅         |
 | `saveToDownloads`                       | MediaStore | Documents | browser download |
 
 ¹ Android only writes HEIC when a device HEIC encoder is present; otherwise the
 engine falls back to JPEG (the actual format is reported on the result).
 
+² Android copies 48 EXIF tags (camera, exposure, lens, GPS, timestamps) into JPEG
+output. iOS passes the source's metadata through wholesale. Web's canvas re-encode
+strips metadata entirely — there is no way around it.
+
 ## Install
 
 ```yaml
 dependencies:
-  flutter_compress: ^1.5.1
+  flutter_compress: ^2.0.0
 ```
 
 ## Integrate with an AI assistant
@@ -150,8 +165,9 @@ print('saved ${result.savedPercent.toStringAsFixed(1)}% → ${result.outputPath}
 | `trim`                             | `TrimRange(startMs, endMs)`.                                   |
 | `alignment`                        | `auto16` (default) rounds to `÷16` to avoid edge artifacts.    |
 | `keepOriginalIfLarger`             | Return the original if compression wouldn't help.              |
+| `minSavingsPercent`                | Return the original unless compression saves at least this much (0–99, default 0). At `5`, an output that shaves only 3% comes back `skipped`. |
+| `androidNotification`              | Opt into background compression by supplying the foreground-service notification (icon, title, text, channel). `null` (default) → no service. Android only. |
 | `container`                        | `auto` (default) keeps the source container where the platform can (iOS `.mov`/`.mp4`; Android/Web → `.mp4`), or `mp4` to force it. |
-| `keepAliveInBackground`            | Default on. Android starts a foreground service (with a notification) so the encode survives backgrounding; set `false` for foreground-only flows and no notification appears. Ignored on iOS and web. |
 
 ## API
 
@@ -213,6 +229,17 @@ print('${r.format} ${r.width}x${r.height} • saved ${r.savedPercent.toStringAsF
 await api.compressImage(path, const ImageCompressConfig(format: ImageFormat.webp, quality: 80));
 await api.compressImageLossless(path);   // keep source format, pixel-for-pixel
 
+// Presets — no tuning needed.
+await api.compressImage(path, const ImageCompressConfig.forAvatar());
+await api.compressImage(path, const ImageCompressConfig.forSocialMedia());
+
+// Already have the bytes? Skip the temp file entirely.
+final ImageBytesResult b = await api.compressImageBytes(
+  bytes,                                 // e.g. await xFile.readAsBytes()
+  const ImageCompressConfig(targetSizeKB: 200),
+);
+uploadBytes(b.bytes);                    // nothing written to disk, nothing to release
+
 // Batch with progress, cancellation, and per-file error tolerance:
 final token = CancellationToken();
 final results = await api.compressImages(
@@ -258,12 +285,13 @@ narrow it, and `CompressCancelled` is a marker both cancel types implement.
 | `maxWidth` / `maxHeight` | Cap dimensions; aspect kept, only scales down.                |
 | `keepExif`               | Keep EXIF (orientation, GPS, …); default strips it.           |
 | `keepOriginalIfLarger`   | Return the original (marked `skipped`) if compression wouldn't shrink it. Default on. |
+| `minSavingsPercent`      | Return the original unless compression saves at least this much (0–99, default 0). |
 
 ## Platform setup
 
-- **Android** — min SDK 24, `compileSdk 36`. Declares four permissions; see
-  [Android permissions](#android-permissions) below — none of them are runtime
-  permissions the plugin requests on its own.
+- **Android** — min SDK 24, `compileSdk 36`. **Declares no permissions.** See
+  [Android permissions](#android-permissions) and
+  [Background compression](#background-compression-on-android).
 - **iOS** — min 13.0. Uses `beginBackgroundTask` for a short background grace
   period. To make `saveToDownloads` files visible in the Files app, add
   `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` to `Info.plist`.
@@ -279,32 +307,110 @@ narrow it, and `CompressCancelled` is a marker both cancel types implement.
 
 ### Android permissions
 
-Everything below merges into **your** app's manifest, so here is exactly what
-arrives and why. The plugin never requests a runtime permission itself — that
-timing is your product's call.
+**This plugin declares no permissions.** Compression is codec work on a file you
+already handed over; it needs none, and manifest merging would push anything
+declared here into every app that depends on the plugin.
 
-| Permission | Used for | Required? | If you remove it |
-|---|---|---|---|
-| `FOREGROUND_SERVICE` | Keeping a video encode alive while the app is backgrounded | Optional | Plugin logs a warning and encodes without background protection |
-| `FOREGROUND_SERVICE_DATA_SYNC` | Same, mandatory typing on Android 14+ | Optional | Same as above |
-| `POST_NOTIFICATIONS` | The notification that a foreground service must show | Optional | Android 13+ suppresses the notification; the encode still runs |
-| `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) | `saveToDownloads()` on Android 9 and below | Needed for `saveToDownloads` on API ≤ 28 | `saveToDownloads` fails on API ≤ 28; API 29+ is unaffected (MediaStore) |
+The one thing it does declare is a `<service>` — a declaration, not a permission,
+so it has no bearing on store review. It has to be in the manifest for the class
+to be startable, and it is **inert** unless you both declare `FOREGROUND_SERVICE`
+*and* pass `androidNotification`. See
+[Background compression](#background-compression-on-android).
 
-**Image-only, or foreground-only?** Pass
-`VideoCompressConfig(keepAliveInBackground: false)` so no service ever starts,
-then strip the first three from the merged manifest:
+The one exception worth knowing about: `saveToDownloads()` on **Android 9 and
+below** writes to the public Downloads folder directly and therefore needs the
+legacy permission. API 29+ goes through MediaStore and needs nothing.
 
 ```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"
-    tools:node="remove" />
+<!-- Only if you call saveToDownloads() and support Android 9 or below. -->
+<uses-permission
+    android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
 ```
 
-Image compression never starts the service, so removing them costs image-only
-apps nothing.
+Without it, `saveToDownloads()` throws `CompressErrorCode.permissionDenied` with a
+message saying exactly this. The plugin never requests runtime permissions for
+you — when to ask the user is a product decision.
+
+The example app declares **zero** permissions, which is the point: it compresses
+video and images with nothing granted.
+
+### Background compression on Android
+
+Android suspends work when your app leaves the foreground, so a long encode needs
+a foreground service — and a foreground service must show a notification. The
+plugin ships the service but **supplies no notification of its own**: the icon,
+wording and channel name are prominent UI that belongs to your app, not to a
+library.
+
+So it is opt-in in two steps. Declare the permissions:
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+<!-- Optional, Android 13+ runtime permission. Without it the service still runs,
+     the notification is just not shown. Request it with a permissions package. -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+…and pass the notification:
+
+```dart
+await FlutterCompress.instance.compress(
+  path,
+  const VideoCompressConfig(
+    targetSizeMB: 10,
+    androidNotification: AndroidNotification(
+      smallIcon: 'drawable/ic_compress',   // your resource
+      title: 'Compressing video',          // your copy, your localisation
+      text: 'Tap to return to the app',
+      channelName: 'Media processing',     // shown in system settings
+    ),
+  ),
+);
+```
+
+`smallIcon` is `"type/name"` resolved against **your** resources
+(`"mipmap/ic_launcher"` works too; a bare `"ic_compress"` means
+`"drawable/ic_compress"`).
+
+**No service starts unless all three hold**, and a miss is never an error — the
+plugin logs and the encode continues foreground-only:
+
+| Missing | Result |
+|---|---|
+| `androidNotification` omitted | No service. This is the default |
+| `smallIcon` doesn't resolve in your app | No service (a bogus icon shows blank or throws on some OEMs) |
+| `FOREGROUND_SERVICE` not declared | No service |
+
+iOS needs none of this: the plugin requests a short background window with
+`beginBackgroundTask`, which shows no UI and needs no permission. `androidNotification`
+is ignored there and on web.
+
+#### The service is visible in your APK
+
+The `<service>` merges into your manifest, is compiled into the APK's binary
+`AndroidManifest.xml`, and is readable through `PackageManager` — so APK
+inspectors such as **LibChecker** list
+`com.compress.all.flutter_compress.CompressionService`, and can fingerprint this
+plugin from it. Nothing runs, but the name is there.
+
+To trace *any* merged element back to whichever dependency added it:
+
+```
+<your-app>/build/app/outputs/logs/manifest-merger-<variant>-report.txt
+```
+
+Each entry names its origin, e.g.
+`service#…CompressionService  ADDED from [:flutter_compress]`.
+
+If your app never wants background compression, drop the declaration — that
+removes it from the component listing too:
+
+```xml
+<service android:name="com.compress.all.flutter_compress.CompressionService"
+    tools:node="remove" />
+```
 
 ### Native dependencies
 

@@ -27,6 +27,19 @@ enum ImageEngine {
     ]
   }
 
+  /// What one encode produced, before it is either written to disk or handed
+  /// back as bytes.
+  private struct EncodeOutcome {
+    let data: Data
+    let width: Int
+    let height: Int
+    let format: String
+    let keptOriginal: Bool
+    let sourceWidth: Int
+    let sourceHeight: Int
+    let sourceFormat: String
+  }
+
   static func compress(
     path: String, config: ImageConfig, outputDir: String?, outputName: String?
   ) throws -> [String: Any] {
@@ -35,6 +48,54 @@ enum ImageEngine {
     }
     let originalSize =
       (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
+    let out = try encode(src, originalSize, config)
+    if out.keptOriginal {
+      return [
+        "outputPath": path,
+        "originalSizeBytes": originalSize,
+        "compressedSizeBytes": originalSize,
+        "width": out.sourceWidth,
+        "height": out.sourceHeight,
+        "format": out.sourceFormat,
+        "skipped": true,
+      ]
+    }
+    let dest = PluginFiles.resolveOutput(
+      outputDir: outputDir, outputName: outputName, sourcePath: path, ext: ext(out.format))
+    try? FileManager.default.createDirectory(
+      at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try out.data.write(to: dest)
+    return [
+      "outputPath": dest.path,
+      "originalSizeBytes": originalSize,
+      "compressedSizeBytes": Int64(out.data.count),
+      "width": out.width,
+      "height": out.height,
+      "format": out.format,
+      "skipped": false,
+    ]
+  }
+
+  /// In-memory variant: no file is read or written. `skipped` hands the caller's
+  /// own bytes straight back.
+  static func compressBytes(data source: Data, config: ImageConfig) throws -> [String: Any] {
+    guard let src = CGImageSourceCreateWithData(source as CFData, nil) else {
+      throw err("Cannot read image")
+    }
+    let out = try encode(src, Int64(source.count), config)
+    return [
+      "bytes": out.keptOriginal ? source : out.data,
+      "originalSizeBytes": Int64(source.count),
+      "width": out.keptOriginal ? out.sourceWidth : out.width,
+      "height": out.keptOriginal ? out.sourceHeight : out.height,
+      "format": out.keptOriginal ? out.sourceFormat : out.format,
+      "skipped": out.keptOriginal,
+    ]
+  }
+
+  private static func encode(
+    _ src: CGImageSource, _ originalSize: Int64, _ config: ImageConfig
+  ) throws -> EncodeOutcome {
     let source = try probe(src)
 
     // A nil format keeps the source's format. ImageIO can't encode WebP → JPEG;
@@ -77,33 +138,15 @@ enum ImageEngine {
 
     // Re-encoding can end up larger than the source (already-compressed input,
     // or lossless). If so, hand back the untouched original.
-    if config.keepOriginalIfLarger && Int64(data.count) >= originalSize {
-      return [
-        "outputPath": path,
-        "originalSizeBytes": originalSize,
-        "compressedSizeBytes": originalSize,
-        "width": source.width,
-        "height": source.height,
-        "format": source.format,
-        "skipped": true,
-      ]
-    }
+    let keptOriginal = SizeMath.keepsOriginal(
+      compressedBytes: Int64(data.count), originalBytes: originalSize,
+      keepOriginalIfLarger: config.keepOriginalIfLarger,
+      minSavingsPercent: config.minSavingsPercent)
 
-    let dest = PluginFiles.resolveOutput(
-      outputDir: outputDir, outputName: outputName, sourcePath: path, ext: ext(effective))
-    try? FileManager.default.createDirectory(
-      at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
-    try data.write(to: dest)
-
-    return [
-      "outputPath": dest.path,
-      "originalSizeBytes": originalSize,
-      "compressedSizeBytes": Int64(data.count),
-      "width": image.width,
-      "height": image.height,
-      "format": effective,
-      "skipped": false,
-    ]
+    return EncodeOutcome(
+      data: data, width: image.width, height: image.height, format: effective,
+      keptOriginal: keptOriginal,
+      sourceWidth: source.width, sourceHeight: source.height, sourceFormat: source.format)
   }
 
   // MARK: - Source inspection

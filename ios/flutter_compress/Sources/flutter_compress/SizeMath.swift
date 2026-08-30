@@ -80,6 +80,21 @@ enum SizeMath {
     return align(Int(w), Int(h), config.alignment)
   }
 
+  /// Whether the source should be handed back untouched.
+  ///
+  /// Integer arithmetic on purpose: the same expression runs in Kotlin, Swift
+  /// and JS (CLAUDE.md §12.2), and float division would let the three drift at
+  /// the boundary. `minSavingsPercent = 0` reproduces the original "only when
+  /// the output is larger or equal" rule exactly.
+  static func keepsOriginal(
+    compressedBytes: Int64, originalBytes: Int64,
+    keepOriginalIfLarger: Bool, minSavingsPercent: Int
+  ) -> Bool {
+    if !keepOriginalIfLarger || originalBytes <= 0 { return false }
+    let ceiling = originalBytes - (originalBytes * Int64(minSavingsPercent)) / 100
+    return compressedBytes >= ceiling
+  }
+
   private static func align(_ w: Int, _ h: Int, _ alignment: String) -> (Int, Int) {
     // Always round *down* so alignment can never upscale.
     let m = alignment == "auto16" ? 16 : 2

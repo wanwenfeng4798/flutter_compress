@@ -124,6 +124,15 @@ public class FlutterCompressPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
     case "getImageInfo":
       dispatch(result, ErrorCode.imageInfoFailed) { try ImageEngine.info(path: try str("path")) }
 
+    case "compressImageBytes":
+      dispatch(result, ErrorCode.imageCompressFailed) {
+        guard let data = args["bytes"] as? FlutterStandardTypedData else {
+          throw Self.badArg("bytes")
+        }
+        return try ImageEngine.compressBytes(
+          data: data.data, config: ImageConfig(map: try map("config")))
+      }
+
     case "compressImage":
       dispatch(result, ErrorCode.imageCompressFailed) {
         try ImageEngine.compress(

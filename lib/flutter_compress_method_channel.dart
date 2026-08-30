@@ -164,4 +164,18 @@ class MethodChannelFlutterCompress extends FlutterCompressPlatform {
           onCancelled: ImageCompressCancelledException.new,
         ),
       );
+
+  @override
+  Future<ImageBytesResult> compressImageBytes(
+    Uint8List source,
+    ImageCompressConfig config,
+  ) async =>
+      ImageBytesResult.fromMap(
+        await _invoke<Map<dynamic, dynamic>>(
+          'compressImageBytes',
+          {'bytes': source, 'config': config.toMap()},
+          ImageCompressException.new,
+          onCancelled: ImageCompressCancelledException.new,
+        ),
+      );
 }

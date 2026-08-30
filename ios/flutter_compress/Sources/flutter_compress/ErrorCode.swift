@@ -19,4 +19,6 @@ enum ErrorCode {
   static let badArguments = "bad_arguments"
   static let noEngine = "no_engine"
   static let unsupported = "unsupported"
+  /// Android-only today; declared here so all three code sets match.
+  static let permissionDenied = "permission_denied"
 }

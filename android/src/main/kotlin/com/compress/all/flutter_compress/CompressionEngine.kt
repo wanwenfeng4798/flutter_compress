@@ -66,6 +66,9 @@ class CompressionEngine(
      */
     private var preCancelledId: String? = null
 
+    /** Whether this job started the foreground service, so `stop` stays balanced. */
+    private var serviceStarted = false
+
     // ---- estimate ----------------------------------------------------------
 
     fun estimate(path: String, config: CompressionConfig): Map<String, Any?> {
@@ -118,7 +121,7 @@ class CompressionEngine(
         try {
             val export = runTransformer(
                 id, buildEditedItem(path, config, srcW, srcH, tw, th), outFile, videoMime,
-                encoderSettings(config, videoMime, videoBps), config.keepAliveInBackground,
+                encoderSettings(config, videoMime, videoBps), config.notification,
             )
             if (export.durationMs > 0) outDurationMs = export.durationMs
             if (export.videoFrameCount > 0 && export.durationMs > 0) {
@@ -144,7 +147,9 @@ class CompressionEngine(
         }
 
         val compressedSize = outFile.length()
-        val skipped = config.keepOriginalIfLarger && compressedSize >= originalSize
+        val skipped = SizeMath.keepsOriginal(
+            compressedSize, originalSize, config.keepOriginalIfLarger, config.minSavingsPercent,
+        )
         if (skipped) outFile.delete()
         return mapOf(
             "id" to id,
@@ -238,7 +243,7 @@ class CompressionEngine(
         outFile: File,
         videoMime: String,
         videoEncoderSettings: VideoEncoderSettings,
-        keepAliveInBackground: Boolean,
+        notification: CompressionService.NotificationSpec?,
     ): ExportResult = suspendCancellableCoroutine { cont ->
         val encoderFactory = DefaultEncoderFactory.Builder(context)
             .setRequestedVideoEncoderSettings(videoEncoderSettings)
@@ -284,7 +289,7 @@ class CompressionEngine(
         activeTransformer = transformer
         activeId = id
         activeCont = cont
-        if (keepAliveInBackground) CompressionForegroundService.start(context)
+        serviceStarted = CompressionService.start(context, notification)
         transformer.start(editedItem, outFile.absolutePath)
         startProgressPolling(id, outFile)
         cont.invokeOnCancellation { mainHandler.post { runCatching { transformer.cancel() } } }
@@ -297,7 +302,10 @@ class CompressionEngine(
         activeId = null
         activeCont = null
         cancelledId = null
-        CompressionForegroundService.stop(context)
+        if (serviceStarted) {
+            serviceStarted = false
+            CompressionService.stop(context)
+        }
     }
 
     // ---- progress / cancel -------------------------------------------------

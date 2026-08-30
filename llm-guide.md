@@ -4,11 +4,11 @@
 `flutter_compress`. Everything needed to write correct code is in this file — no
 other page needs to be fetched.
 
-**Package:** `flutter_compress` · **This guide targets:** 1.5.1
+**Package:** `flutter_compress` · **This guide targets:** 2.0.0
 **Source of truth:** <https://pub.dev/packages/flutter_compress>
 
 Before integrating, check the latest version on pub.dev and use it in
-`pubspec.yaml`. If the installed version differs from 1.5.1, prefer the
+`pubspec.yaml`. If the installed version differs from 2.0.0, prefer the
 package's own dartdoc over this file.
 
 **What it does.** Compresses **video** and **images** on Android, iOS and Web
@@ -44,7 +44,7 @@ written.
 
 ```yaml
 dependencies:
-  flutter_compress: ^1.5.1
+  flutter_compress: ^2.0.0
 ```
 
 No platform registration, no init call. The plugin registers itself.
@@ -63,32 +63,57 @@ final api = FlutterCompress.instance;
 
 ### Android
 
-`minSdk 24`. The plugin's manifest merges these into the host app:
+`minSdk 24`. **The plugin declares no permissions.** Do not add any on its
+behalf.
 
-| Permission | For | Required? |
+It does declare one `<service>` (a declaration, not a permission), which stays
+inert unless the app opts in below. It is still visible in the APK's component
+list — APK inspectors like LibChecker will show
+`com.compress.all.flutter_compress.CompressionService`. An app that never wants
+background compression can remove it with `tools:node="remove"`; see the README.
+
+One permission exception exists, for one call only:
+
+| Situation | App must declare | Without it |
 |---|---|---|
-| `FOREGROUND_SERVICE` | video encode surviving backgrounding | optional |
-| `FOREGROUND_SERVICE_DATA_SYNC` | same, Android 14+ typing | optional |
-| `POST_NOTIFICATIONS` | the foreground service's notification | optional |
-| `WRITE_EXTERNAL_STORAGE` (`maxSdkVersion="28"`) | `saveToDownloads()` on API ≤ 28 | only for that call |
+| `saveToDownloads()` on API ≤ 28 | `WRITE_EXTERNAL_STORAGE` with `maxSdkVersion="28"` | Throws `CompressErrorCode.permissionDenied`. API 29+ needs nothing |
 
-**If the app only compresses images, or only in the foreground**, pass
-`keepAliveInBackground: false` and strip the first three:
+**Background compression is opt-in, and its notification is the app's.** The
+plugin ships the foreground service but supplies **no** icon or wording — those
+are prominent UI that belongs to the app. To enable it:
 
-```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"
-    tools:node="remove" />
+1. Declare `FOREGROUND_SERVICE` (+ `FOREGROUND_SERVICE_DATA_SYNC` on Android 14+)
+   in the **app's** manifest. `POST_NOTIFICATIONS` is optional — without it the
+   service runs silently.
+2. Pass `androidNotification` on the config:
+
+```dart
+const VideoCompressConfig(
+  targetSizeMB: 10,
+  androidNotification: AndroidNotification(
+    smallIcon: 'drawable/ic_compress',   // "type/name" in the *app's* resources
+    title: 'Compressing video',          // required; no plugin default exists
+    text: 'Tap to return',               // optional
+    channelName: 'Media processing',     // optional; defaults to title
+  ),
+);
 ```
 
-Image compression never starts the service, so this costs image-only apps
-nothing. A stripped permission does not crash the encode — the plugin logs and
-continues without background protection.
+**No service starts unless all three hold**, and a miss is never an error — the
+plugin logs and encodes foreground-only:
 
-R8/ProGuard rules ship with the plugin (`consumer-rules.pro`). Add nothing.
+| Missing | Result |
+|---|---|
+| `androidNotification` omitted | No service. **This is the default** |
+| `smallIcon` doesn't resolve in the app | No service |
+| `FOREGROUND_SERVICE` not declared | No service |
+
+Never invent a title or pick an icon for the user — if they ask for background
+compression and haven't said what the notification should say, ask. A wrong icon
+means no service at all, silently.
+
+iOS needs none of this: the plugin already requests a background window with
+`beginBackgroundTask`, which has no UI and no permission.
 
 ### iOS
 
@@ -162,7 +187,8 @@ print('${result.outputPath} — saved ${result.savedPercent.toStringAsFixed(1)}%
 | `alignment` | `DimensionAlignment` | `auto16` | `auto16` rounds down to ÷16; `none` disables |
 | `keepOriginalIfLarger` | `bool` | `true` | Return the source untouched if compression would grow it |
 | `container` | `VideoContainer` | `auto` | `auto` keeps the source container where possible; `mp4` forces |
-| `keepAliveInBackground` | `bool` | `true` | Android foreground service; see §2 |
+| `minSavingsPercent` | `int` | `0` | Return the source unless the output saves at least this much (0–99) |
+| `androidNotification` | `AndroidNotification?` | `null` | Opt into background compression; **Android only**, see §2 |
 
 ### Size-control priority — set exactly one
 
@@ -183,6 +209,19 @@ const VideoCompressConfig(targetSizeMB: 10);
 ```
 
 Non-positive values (`targetSizeMB: 0`, `maxWidth: 0`, …) trip an assertion.
+`minSavingsPercent` must be 0–99; `100` would mean "skip unless the output is
+zero bytes".
+
+### Presets — prefer these when the caller has no specific numbers
+
+```dart
+const VideoCompressConfig.forSocialMedia();   // 1080p cap, H.264, 6 Mbps, mp4
+const VideoCompressConfig.maxCompression();   // 720p cap, H.265, veryLow, 10% floor
+```
+
+`forSocialMedia` uses **H.264 deliberately**, not H.265: upload pipelines that
+re-encode will reject an HEVC source they cannot decode. Do not "improve" it to
+H.265.
 
 ### `VideoCompressResult`
 
@@ -253,6 +292,7 @@ print('${r.format} ${r.width}x${r.height} — ${r.savedPercent.toStringAsFixed(1
 | `keepExif` | `bool` | `false` | See §7 — **JPEG only on Android, not on Web** |
 | `lossless` | `bool` | `false` | Pixel-identical re-encode; ignores `targetSizeKB` |
 | `keepOriginalIfLarger` | `bool` | `true` | Return the source untouched if the result would be larger |
+| `minSavingsPercent` | `int` | `0` | Return the source unless the output saves at least this much (0–99) |
 
 **Leave `format` null unless the app genuinely needs a conversion.** A null
 format preserves JPEG as JPEG, PNG as PNG — which is what callers almost always
@@ -277,6 +317,46 @@ final r = await api.compressImageLossless(path);
 ```dart
 final ImageMeta meta = await api.getImageInfo(path);
 ```
+
+### Presets
+
+```dart
+const ImageCompressConfig.forAvatar();        // 512px cap, JPEG, q80
+const ImageCompressConfig.forSocialMedia();   // 2048px cap, 500 KB, source format, EXIF dropped
+```
+
+`forSocialMedia` drops EXIF on purpose — uploading a photo with its GPS tags
+intact is a privacy leak, not a feature.
+
+### `compressImageBytes` — when the source is not a file
+
+```dart
+Future<ImageBytesResult> compressImageBytes(
+  Uint8List source,
+  ImageCompressConfig config,
+)
+```
+
+```dart
+final result = await api.compressImageBytes(
+  await xFile.readAsBytes(),
+  const ImageCompressConfig(targetSizeKB: 200),
+);
+await upload(result.bytes);   // nothing on disk, nothing to release
+```
+
+**Use this whenever the bytes are already in memory** — an `image_picker`
+`XFile`, a camera frame, a download. Writing a temp file just to obtain a path is
+the mistake this method exists to remove.
+
+`ImageBytesResult`: `bytes`, `originalSizeBytes`, `compressedSizeBytes` (a getter
+over `bytes.length`), `width`, `height`, `format`, `skipped`, plus
+`compressionRatio` / `savedPercent`. When `skipped` is true, `bytes` **is the
+source array you passed in**.
+
+**There is no `compressVideoBytes`, by design.** A video would mean copying tens
+of megabytes through the platform channel in one message. Use `compress()` with a
+path for video.
 
 ---
 
@@ -370,7 +450,12 @@ try {
 
 `CompressErrorCode` constants: `cancelled`, `infoFailed`, `estimateFailed`,
 `compressFailed`, `thumbnailFailed`, `saveFailed`, `imageInfoFailed`,
-`imageCompressFailed`, `badArguments`, `noEngine`, `unsupported`.
+`imageCompressFailed`, `badArguments`, `noEngine`, `unsupported`,
+`permissionDenied`.
+
+`permissionDenied` is **Android-only** today: `saveToDownloads()` on API ≤ 28
+without `WRITE_EXTERNAL_STORAGE`. Handle it by telling the user to grant storage
+access — never by adding the permission silently on their behalf.
 
 Compare `e.code` against these constants. Never parse `e.message` — its wording
 is not stable.
@@ -396,7 +481,7 @@ have the requested property.
 | `trim` | ✅ | ✅ | ❌ |
 | Thumbnail / info / estimate | ✅ | ✅ | ✅ |
 | Progress / cancel / batch | ✅ | ✅ | ✅ |
-| Background compression | ✅ foreground service | ✅ background task | n/a |
+| Background compression | ⚠️ opt-in ⁵ | ✅ background task | n/a |
 
 ¹ Web uses HEVC only where the browser's WebCodecs supports encoding it,
 otherwise H.264. Read `result.codec`.
@@ -414,7 +499,16 @@ default. The value still shapes the `targetSizeMB` budget.
 | JPEG / PNG / WebP | ✅ | ✅ | ✅ |
 | HEIC | ⚠️ device encoder only, else JPEG | ✅ | ❌ |
 | `maxWidth` / `maxHeight` | ✅ | ✅ | ✅ |
-| `keepExif` | ⚠️ JPEG only | ✅ | ❌ |
+| `keepExif` | ⚠️ JPEG only ⁴ | ✅ | ❌ |
+| `compressImageBytes` | ✅ | ✅ | ✅ |
+
+⁵ Android requires `androidNotification` **and** the `FOREGROUND_SERVICE`
+permission (see §2). Without either, the encode is foreground-only — that is the
+design, not an error condition.
+
+⁴ Android copies 48 EXIF tags into JPEG output. iOS passes the source's metadata
+through wholesale. Web's canvas re-encode strips metadata entirely — no workaround
+exists, so do not offer a "keep EXIF" switch on web.
 
 **Consequence for generated code:** never present an ignored option to the user
 as if it worked. If a UI exposes a frame-rate slider, gate it on
@@ -524,8 +618,11 @@ Future<String?> shrinkVideo(String inputPath) async {
 - [ ] `CancellationToken.reset()` before reuse
 - [ ] Errors caught as `CompressException` / `CompressCancelled`, not `PlatformException`
 - [ ] `e.code` compared against `CompressErrorCode`, never `e.message` parsed
-- [ ] Android: `keepAliveInBackground: false` + permissions stripped if image-only
+- [ ] Android: no permission added except `WRITE_EXTERNAL_STORAGE` for legacy
+      `saveToDownloads`, or the app's own background service
 - [ ] No `NS*UsageDescription` added on this plugin's behalf
+- [ ] `compressImageBytes()` used when the source is already in memory — no
+      temp file written just to get a path
 - [ ] Options marked ❌ for a platform are not exposed as working in the UI
 
 ---
@@ -543,8 +640,15 @@ Future<String?> shrinkVideo(String inputPath) async {
 | Reusing a `CancellationToken` | It latches; the next job aborts instantly | `token.reset()` |
 | Catching `PlatformException` | Never thrown by this API; the catch is dead code | Catch `CompressException` |
 | Adding camera/photo `Info.plist` keys | Plugin needs none; unjustified keys invite App Store questions | Only the file-picker package's keys |
+| Adding Android permissions "because the plugin needs them" | It declares none and needs none; every one you add is yours to justify at review | Add only for your own background service or legacy `saveToDownloads` |
+| Looking for `keepAliveInBackground` | Replaced in 2.0.0 by `androidNotification` | Pass an `AndroidNotification`, or omit it for no service |
+| Inventing a notification title or icon | A wrong icon silently disables the service; invented copy ships in the user's app | Ask what it should say, or omit `androidNotification` |
+| Treating a foreground-only encode as a failure | That is simply what Android does without the app's own service — nothing throws | Nothing to handle |
 | `outputName: 'photo.png'` to get a PNG | The name never sets the format — the extension is stripped and the real format wins | `format: ImageFormat.png` |
 | Parallel `Future.wait` over videos | Hardware encoders contend; slower and can fail | `compressAll()` |
+| Writing a temp file to compress bytes you already hold | Pointless IO, plus a file you now have to clean up | `compressImageBytes()` |
+| Looking for `compressVideoBytes` | Doesn't exist — a video through one channel message is a memory spike | `compress()` with a path |
+| Hand-tuning a config for a common case | Easy to set two size controls by accident | A preset (`forSocialMedia()`, `forAvatar()`, …) |
 | `lossless: true` "failing" because the file grew | Expected for already-compressed sources | Handle `skipped` |
 
 ---
@@ -561,6 +665,7 @@ Future<String?> shrinkVideo(String inputPath) async {
 | `getThumbnail` | `(String, {positionMs, quality, maxWidth}) → Future<String>` | Frame grab; path or `data:` URL |
 | `getImageInfo` | `(String path) → Future<ImageMeta>` | Probe an image |
 | `compressImage` | `(String, ImageCompressConfig, {outputDirectory, outputName}) → Future<ImageCompressResult>` | Compress one image |
+| `compressImageBytes` | `(Uint8List, ImageCompressConfig) → Future<ImageBytesResult>` | Compress bytes in memory; no file IO |
 | `compressImageLossless` | `(String, {format, maxWidth, maxHeight, keepExif, outputDirectory, outputName}) → Future<ImageCompressResult>` | Lossless wrapper |
 | `compressImages` | `(List<String>, ImageCompressConfig, {outputDirectory, onItemDone, cancellationToken, continueOnError, onItemError}) → Future<List<ImageCompressResult>>` | Sequential image batch |
 | `cancel` | `([String? id]) → Future<void>` | Cancel one job |

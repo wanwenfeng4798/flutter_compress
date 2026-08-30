@@ -88,4 +88,23 @@ object SizeMath {
         fun down(v: Int): Int = (v / m * m).coerceAtLeast(m)
         return down(w) to down(h)
     }
+
+    /**
+     * Whether the source should be handed back untouched.
+     *
+     * Integer arithmetic on purpose: the same expression runs in Kotlin, Swift
+     * and JS (CLAUDE.md §12.2), and float division would let the three drift at
+     * the boundary. `minSavingsPercent = 0` reproduces the original "only when
+     * the output is larger or equal" rule exactly.
+     */
+    fun keepsOriginal(
+        compressedBytes: Long,
+        originalBytes: Long,
+        keepOriginalIfLarger: Boolean,
+        minSavingsPercent: Int,
+    ): Boolean {
+        if (!keepOriginalIfLarger || originalBytes <= 0) return false
+        val ceiling = originalBytes - (originalBytes * minSavingsPercent) / 100
+        return compressedBytes >= ceiling
+    }
 }

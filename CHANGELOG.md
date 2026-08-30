@@ -1,5 +1,48 @@
 # Changelog
 
+## 2.0.0
+
+### Breaking
+
+- **The plugin no longer declares any Android permission.** `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_DATA_SYNC`, `POST_NOTIFICATIONS` and
+  `WRITE_EXTERNAL_STORAGE` are gone: manifest merging pushed all four into every
+  app that depended on the plugin, for capabilities many never used — and none are
+  needed to compress. Declare what you actually want; the README has the
+  snippets.
+- **`keepAliveInBackground` is replaced by `androidNotification`.** A foreground
+  service must show a notification, and its icon, title and wording belong to your
+  app, not to a library — so the plugin no longer supplies one. Pass an
+  `AndroidNotification` (icon, title, optional text and channel name) to opt into
+  background compression; omit it and no service is ever started.
+
+  No service starts unless the notification is supplied, its `smallIcon` resolves
+  in your app, **and** your app declares `FOREGROUND_SERVICE`. A miss is never an
+  error: the plugin logs and encodes foreground-only.
+
+  **Migrating:** relied on background compression? Declare the permissions and
+  pass `androidNotification`. Didn't? Drop `keepAliveInBackground` and nothing
+  else changes. iOS keeps its background window (`beginBackgroundTask`: no UI, no
+  permission) and ignores this field.
+- `saveToDownloads()` on Android 9 and below now throws
+  `CompressErrorCode.permissionDenied` unless your app declares
+  `WRITE_EXTERNAL_STORAGE` with `maxSdkVersion="28"`. API 29+ is unaffected.
+- Add `CompressErrorCode.permissionDenied` (Android-only today).
+
+### Added
+
+- `compressImageBytes()` — compress an image already in memory, no temp file.
+  Images only: a video would mean copying tens of MB through the channel at once.
+- `minSavingsPercent`: return the original unless compression saves at least
+  this much. Default `0` keeps the previous behaviour.
+- Presets: `VideoCompressConfig.forSocialMedia()` / `.maxCompression()`,
+  `ImageCompressConfig.forAvatar()` / `.forSocialMedia()`.
+
+### Fixed
+
+- Android `keepExif` now copies 48 tags instead of 7 — exposure, lens and
+  orientation data used to be dropped silently.
+
 ## 1.5.1
 
 - Add [`llm-guide.md`](llm-guide.md) — an integration guide for AI coding

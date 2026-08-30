@@ -2,6 +2,7 @@ package com.compress.all.flutter_compress
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -40,7 +41,8 @@ class SizeMathTest {
         trimEndMs = null,
         alignment = alignment,
         keepOriginalIfLarger = true,
-        keepAliveInBackground = true,
+        minSavingsPercent = 0,
+        notification = null,
     )
 
     private fun bitrate(
@@ -187,5 +189,35 @@ class SizeMathTest {
     fun `never returns a zero side for a tiny cap`() {
         val (w, h) = SizeMath.targetDimensions(1920, 1080, config(maxWidth = 8))
         assertTrue(w > 0 && h > 0, "got ${w}x$h")
+    }
+
+    // ---- keepsOriginal (minSavingsPercent) ---------------------------------
+
+    @Test
+    fun `percent 0 keeps the original only when the output is not smaller`() {
+        // The pre-threshold behaviour, preserved exactly.
+        assertTrue(SizeMath.keepsOriginal(1000, 1000, true, 0))
+        assertTrue(SizeMath.keepsOriginal(1001, 1000, true, 0))
+        assertFalse(SizeMath.keepsOriginal(999, 1000, true, 0))
+    }
+
+    @Test
+    fun `a threshold rejects marginal wins`() {
+        // 5% of 1000 is 50, so anything at or above 950 is not worth swapping.
+        assertTrue(SizeMath.keepsOriginal(970, 1000, true, 5))
+        assertTrue(SizeMath.keepsOriginal(950, 1000, true, 5))
+        assertFalse(SizeMath.keepsOriginal(949, 1000, true, 5))
+    }
+
+    @Test
+    fun `the flag gates the whole behaviour`() {
+        assertFalse(SizeMath.keepsOriginal(5000, 1000, false, 50))
+    }
+
+    @Test
+    fun `an unknown source size never forces the original`() {
+        // Web can report 0 when the blob size is unavailable; returning true
+        // there would hand back an input we may not even be able to read.
+        assertFalse(SizeMath.keepsOriginal(500, 0, true, 5))
     }
 }

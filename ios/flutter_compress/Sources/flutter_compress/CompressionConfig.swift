@@ -16,6 +16,7 @@ struct CompressionConfig {
   let trimEndMs: Int64?
   let alignment: String
   let keepOriginalIfLarger: Bool
+  let minSavingsPercent: Int
   /// "auto" (keep source container where possible) or "mp4".
   let container: String
 
@@ -35,6 +36,7 @@ struct CompressionConfig {
     trimEndMs = (trim?["endMs"] as? NSNumber)?.int64Value
     alignment = map["alignment"] as? String ?? "auto16"
     keepOriginalIfLarger = map["keepOriginalIfLarger"] as? Bool ?? true
+    minSavingsPercent = (map["minSavingsPercent"] as? NSNumber)?.intValue ?? 0
     container = map["container"] as? String ?? "auto"
   }
 }

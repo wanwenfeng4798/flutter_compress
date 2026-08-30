@@ -64,6 +64,60 @@ class TrimRange {
   Map<String, dynamic> toMap() => {'startMs': startMs, 'endMs': endMs};
 }
 
+/// The notification an Android foreground service must show while an encode
+/// runs in the background.
+///
+/// **Android only**, and **opt-in**: pass one to
+/// [VideoCompressConfig.androidNotification] and the plugin keeps the encode
+/// alive when your app is backgrounded. Omit it and no service is ever started —
+/// the encode is foreground-only, which is what Android does by default.
+///
+/// The plugin deliberately has no default here. An icon and wording chosen by a
+/// library would look foreign in your app, and a foreground-service notification
+/// is one of the most visible pieces of UI your app shows.
+///
+/// Starting the service also requires your app to declare `FOREGROUND_SERVICE`
+/// (plus `FOREGROUND_SERVICE_DATA_SYNC` on Android 14+). If either the
+/// permission or this notification is missing — or [smallIcon] doesn't resolve
+/// to a real resource — the plugin logs and encodes foreground-only rather than
+/// starting a service you can't see or crashing on a broken icon.
+class AndroidNotification {
+  const AndroidNotification({
+    required this.smallIcon,
+    required this.title,
+    this.text,
+    this.channelName,
+  })  : assert(smallIcon != '', 'smallIcon must name a real resource'),
+        assert(title != '', 'title must not be empty');
+
+  /// Resource to use as the status-bar icon, as `"type/name"` — e.g.
+  /// `"drawable/ic_compress"` or `"mipmap/ic_launcher"`. A bare `"ic_compress"`
+  /// is treated as `"drawable/ic_compress"`.
+  ///
+  /// Resolved on the native side against **your app's** resources. If it doesn't
+  /// resolve, no service is started (Android would otherwise show a blank icon
+  /// or throw).
+  final String smallIcon;
+
+  /// Notification title. Yours to word and localise — the plugin never supplies
+  /// a fallback.
+  final String title;
+
+  /// Optional second line.
+  final String? text;
+
+  /// User-visible name of the notification channel, shown in system settings.
+  /// Defaults to [title] when omitted.
+  final String? channelName;
+
+  Map<String, dynamic> toMap() => {
+        'smallIcon': smallIcon,
+        'title': title,
+        'text': text,
+        'channelName': channelName,
+      };
+}
+
 /// Full compression request.
 ///
 /// Priority when multiple size controls are set:
@@ -87,7 +141,8 @@ class VideoCompressConfig {
     this.alignment = DimensionAlignment.auto16,
     this.keepOriginalIfLarger = true,
     this.container = VideoContainer.auto,
-    this.keepAliveInBackground = true,
+    this.minSavingsPercent = 0,
+    this.androidNotification,
   })  : assert(
           qualityPercent == null ||
               (qualityPercent >= 1 && qualityPercent <= 100),
@@ -103,7 +158,53 @@ class VideoCompressConfig {
             'audioBitrateKbps must be > 0'),
         assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
         assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
-        assert(frameRate == null || frameRate > 0, 'frameRate must be > 0');
+        assert(frameRate == null || frameRate > 0, 'frameRate must be > 0'),
+        assert(minSavingsPercent >= 0 && minSavingsPercent < 100,
+            'minSavingsPercent must be 0–99');
+
+  /// Sized for social platforms: 1080p cap, **H.264** for the widest possible
+  /// playback support, and a bitrate that survives the platform's own re-encode.
+  ///
+  /// H.264 rather than H.265 is deliberate — most upload pipelines transcode
+  /// again, and an HEVC source they can't decode is rejected outright.
+  const VideoCompressConfig.forSocialMedia({
+    this.maxWidth = 1080,
+    this.maxHeight = 1920,
+    this.trim,
+  })  : quality = CompressQuality.high,
+        qualityPercent = null,
+        targetSizeMB = null,
+        videoBitrateKbps = 6000,
+        codec = VideoCodec.h264,
+        frameRate = null,
+        removeAudio = false,
+        audioBitrateKbps = 128,
+        alignment = DimensionAlignment.auto16,
+        keepOriginalIfLarger = true,
+        container = VideoContainer.mp4,
+        minSavingsPercent = 0,
+        androidNotification = null;
+
+  /// Smallest file that still looks acceptable: 720p cap, H.265, aggressive
+  /// bitrate. Use for archival or bandwidth-constrained upload.
+  const VideoCompressConfig.maxCompression({
+    this.maxWidth = 720,
+    this.maxHeight = 1280,
+    this.trim,
+  })  : quality = CompressQuality.veryLow,
+        qualityPercent = null,
+        targetSizeMB = null,
+        videoBitrateKbps = null,
+        codec = VideoCodec.h265,
+        frameRate = null,
+        removeAudio = false,
+        audioBitrateKbps = 64,
+        alignment = DimensionAlignment.auto16,
+        keepOriginalIfLarger = true,
+        container = VideoContainer.mp4,
+        // At this quality a marginal win isn't worth a re-encode.
+        minSavingsPercent = 10,
+        androidNotification = null;
 
   /// Preset quality tier. Used only when [qualityPercent] is null (and no
   /// higher-priority size control is set).
@@ -164,24 +265,25 @@ class VideoCompressConfig {
   /// original untouched and mark the result [VideoCompressResult.skipped].
   final bool keepOriginalIfLarger;
 
+  /// Opt into background compression on Android by supplying the notification
+  /// its foreground service must show. `null` (the default) means no service and
+  /// no notification — see [AndroidNotification].
+  ///
+  /// Ignored on iOS (which needs no permission and shows no UI) and on web.
+  final AndroidNotification? androidNotification;
+
+  /// How much the output must actually save before it is worth using, in
+  /// percent of the source size. Requires [keepOriginalIfLarger].
+  ///
+  /// `0` (the default) keeps the original only when the output would be *larger*
+  /// or equal. Raise it to reject marginal wins: at `5`, an output that shaves
+  /// only 3% comes back as [VideoCompressResult.skipped] with the source path —
+  /// a re-encode that saves 3% costs quality and metadata for nothing.
+  final int minSavingsPercent;
+
   /// Output container. Defaults to [VideoContainer.auto] (keep the source's
   /// container where the platform can, else mp4).
   final VideoContainer container;
-
-  /// Whether the encode should survive the app being backgrounded.
-  ///
-  /// **Android:** starts a `dataSync` foreground service for the duration of the
-  /// encode, which shows a system notification. Set this to `false` for
-  /// foreground-only flows to avoid the notification — but note that Android
-  /// then suspends the encode when the app leaves the foreground. If your app
-  /// strips `FOREGROUND_SERVICE` from the merged manifest, the plugin logs and
-  /// carries on without the service rather than crashing.
-  ///
-  /// **iOS:** requests a background execution window (`beginBackgroundTask`),
-  /// which has no notification and no permission; this flag is ignored.
-  ///
-  /// **Web:** ignored — the browser tab governs this.
-  final bool keepAliveInBackground;
 
   Map<String, dynamic> toMap() => {
         'quality': quality.name,
@@ -198,7 +300,8 @@ class VideoCompressConfig {
         'alignment': alignment.name,
         'keepOriginalIfLarger': keepOriginalIfLarger,
         'container': container.name,
-        'keepAliveInBackground': keepAliveInBackground,
+        'minSavingsPercent': minSavingsPercent,
+        'androidNotification': androidNotification?.toMap(),
       };
 }
 

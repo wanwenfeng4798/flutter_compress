@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 // Image-compression models — deliberately separate from the video models so the
 // two APIs never blur together.
 
@@ -30,11 +32,40 @@ class ImageCompressConfig {
     this.keepExif = false,
     this.lossless = false,
     this.keepOriginalIfLarger = true,
+    this.minSavingsPercent = 0,
   })  : assert(quality >= 1 && quality <= 100, 'quality must be 1–100'),
         assert(targetSizeKB == null || targetSizeKB > 0,
             'targetSizeKB must be > 0'),
         assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
-        assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0');
+        assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
+        assert(minSavingsPercent >= 0 && minSavingsPercent < 100,
+            'minSavingsPercent must be 0–99');
+
+  /// Sized for upload as an avatar or thumbnail: 512px cap, JPEG, modest
+  /// quality. Format is forced because a 4 MB PNG avatar is the common mistake.
+  const ImageCompressConfig.forAvatar({
+    this.maxWidth = 512,
+    this.maxHeight = 512,
+  })  : format = ImageFormat.jpeg,
+        quality = 80,
+        targetSizeKB = null,
+        keepExif = false,
+        lossless = false,
+        keepOriginalIfLarger = true,
+        minSavingsPercent = 0;
+
+  /// A photo destined for a social post: 2048px cap, source format kept, EXIF
+  /// dropped so location data doesn't leak with the upload.
+  const ImageCompressConfig.forSocialMedia({
+    this.maxWidth = 2048,
+    this.maxHeight = 2048,
+    this.targetSizeKB = 500,
+  })  : format = null,
+        quality = 85,
+        keepExif = false,
+        lossless = false,
+        keepOriginalIfLarger = true,
+        minSavingsPercent = 0;
 
   /// Output format. When `null` (the default), the **source's format is kept**
   /// (a PNG stays PNG, a JPEG stays JPEG); set it only to convert to a specific
@@ -74,6 +105,16 @@ class ImageCompressConfig {
   /// source, with its original size/format/dimensions.
   final bool keepOriginalIfLarger;
 
+  /// How much the output must actually save before it is worth using, in
+  /// percent of the source size. Requires [keepOriginalIfLarger].
+  ///
+  /// `0` (the default) keeps the original only when the output would be *larger*
+  /// or equal. Raise it to reject marginal wins: at `5`, an output that shaves
+  /// only 3% comes back as [ImageCompressResult.skipped] with the source path,
+  /// because swapping files — and losing whatever metadata the re-encode drops —
+  /// isn't worth 3%.
+  final int minSavingsPercent;
+
   Map<String, dynamic> toMap() => {
         'format': format?.name,
         'quality': quality,
@@ -83,6 +124,7 @@ class ImageCompressConfig {
         'keepExif': keepExif,
         'lossless': lossless,
         'keepOriginalIfLarger': keepOriginalIfLarger,
+        'minSavingsPercent': minSavingsPercent,
       };
 }
 
@@ -153,5 +195,52 @@ class ImageCompressResult {
         height: (m['height'] as num).toInt(),
         format: m['format'] as String,
         skipped: m['skipped'] as bool? ?? false,
+      );
+}
+
+/// Result of an in-memory image compression (see
+/// `FlutterCompress.compressImageBytes`). Mirrors [ImageCompressResult] but
+/// carries the encoded bytes instead of a path — nothing is written to disk.
+class ImageBytesResult {
+  const ImageBytesResult({
+    required this.bytes,
+    required this.originalSizeBytes,
+    required this.width,
+    required this.height,
+    required this.format,
+    this.skipped = false,
+  });
+
+  /// The encoded image. When [skipped] is true these are the **source** bytes,
+  /// returned unchanged.
+  final Uint8List bytes;
+
+  final int originalSizeBytes;
+  final int width;
+  final int height;
+
+  /// The format actually written ("jpeg"/"png"/"webp"/"heic") — may differ from
+  /// the request when a platform lacks that encoder.
+  final String format;
+
+  /// True when re-encoding would not have helped, so the source was returned
+  /// untouched (see [ImageCompressConfig.keepOriginalIfLarger] and
+  /// [ImageCompressConfig.minSavingsPercent]).
+  final bool skipped;
+
+  int get compressedSizeBytes => bytes.length;
+
+  double get compressionRatio =>
+      originalSizeBytes == 0 ? 1 : compressedSizeBytes / originalSizeBytes;
+
+  double get savedPercent => (1 - compressionRatio) * 100;
+
+  factory ImageBytesResult.fromMap(Map<dynamic, dynamic> m) => ImageBytesResult(
+        bytes: m['bytes'] as Uint8List,
+        originalSizeBytes: (m['originalSizeBytes'] as num).toInt(),
+        width: (m['width'] as num).toInt(),
+        height: (m['height'] as num).toInt(),
+        format: m['format'] as String,
+        skipped: m['skipped'] == true,
       );
 }

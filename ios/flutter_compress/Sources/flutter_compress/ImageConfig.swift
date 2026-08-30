@@ -11,6 +11,7 @@ struct ImageConfig {
   let keepExif: Bool
   let lossless: Bool
   let keepOriginalIfLarger: Bool
+  let minSavingsPercent: Int
 
   init(map: [String: Any]) {
     format = map["format"] as? String
@@ -21,5 +22,6 @@ struct ImageConfig {
     keepExif = map["keepExif"] as? Bool ?? false
     lossless = map["lossless"] as? Bool ?? false
     keepOriginalIfLarger = map["keepOriginalIfLarger"] as? Bool ?? true
+    minSavingsPercent = (map["minSavingsPercent"] as? NSNumber)?.intValue ?? 0
   }
 }

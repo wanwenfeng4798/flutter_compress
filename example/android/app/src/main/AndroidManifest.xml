@@ -1,4 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      The plugin declares no permissions. This example declares none either —
+      which is the proof that compression itself needs none.
+
+      To enable background compression, uncomment these AND pass
+      `androidNotification` on the VideoCompressConfig. Without both, the
+      plugin's service never starts (it has no notification of its own):
+
+      <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+      <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+      <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+      Only needed if you call saveToDownloads() on Android 9 or below; API 29+
+      goes through MediaStore and needs nothing:
+
+      <uses-permission
+          android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+          android:maxSdkVersion="28" />
+    -->
+
     <application
         android:label="flutter_compress_example"
         android:name="${applicationName}"

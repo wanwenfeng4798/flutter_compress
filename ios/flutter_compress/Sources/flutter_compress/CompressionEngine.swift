@@ -335,7 +335,10 @@ final class CompressionEngine {
           if writer.status == .completed {
             let compressedSize =
               (try? FileManager.default.attributesOfItem(atPath: outURL.path)[.size] as? Int64) ?? 0
-            if config.keepOriginalIfLarger && compressedSize >= originalSize {
+            if SizeMath.keepsOriginal(
+              compressedBytes: compressedSize, originalBytes: originalSize,
+              keepOriginalIfLarger: config.keepOriginalIfLarger,
+              minSavingsPercent: config.minSavingsPercent) {
               try? FileManager.default.removeItem(at: outURL)
               finish(.success([
                 "id": id, "outputPath": path,

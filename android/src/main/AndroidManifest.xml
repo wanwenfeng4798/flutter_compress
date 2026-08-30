@@ -1,21 +1,51 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Lets compression continue while the app is backgrounded. -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+      No permissions, deliberately. Manifest merging is transitive: anything
+      declared here lands in every host app, and none of it is needed to
+      compress. Background compression and legacy saveToDownloads() are opt-in;
+      the app declares what it wants. See the README.
 
-    <!-- saveToDownloads(): MediaStore needs no permission on Android 10+ (API
-         29+); only Android 9 and below writes to the public Downloads folder
-         directly and needs this legacy permission. -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+      The <service> below is a declaration, not a permission — it has to be here
+      for the class to be startable at all. It is inert unless the app both
+      declares FOREGROUND_SERVICE *and* passes a VideoCompressConfig with
+      `androidNotification`, because the plugin supplies no notification of its
+      own.
 
+      It is, however, VISIBLE. This element merges into the app's manifest, gets
+      compiled into the APK's binary AndroidManifest.xml, and is readable through
+      PackageManager — so APK inspectors such as LibChecker list
+      `com.compress.all.flutter_compress.CompressionService` and can fingerprint
+      this plugin from it. To trace any merged element back to its origin, read
+      `<app>/build/app/outputs/logs/manifest-merger-<variant>-report.txt`; each
+      entry names the module that added it.
+
+      Apps that never want background compression can drop it entirely, which
+      also removes it from that component listing:
+
+          <service android:name="com.compress.all.flutter_compress.CompressionService"
+              tools:node="remove" />
+    -->
     <application>
         <service
-            android:name=".CompressionForegroundService"
+            android:name=".CompressionService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync">
+            <!--
+              Attribution, readable from the built APK.
+
+              Unlike the XML comments above (which never reach the binary
+              manifest), <meta-data> is compiled in and surfaces through
+              PackageManager's GET_META_DATA — so anyone inspecting the APK with
+              LibChecker or similar can see which package this component belongs
+              to, instead of having to guess from the class name.
+            -->
+            <meta-data
+                android:name="io.pub.package"
+                android:value="flutter_compress" />
+            <meta-data
+                android:name="io.pub.package.url"
+                android:value="https://pub.dev/packages/flutter_compress" />
+        </service>
     </application>
 </manifest>

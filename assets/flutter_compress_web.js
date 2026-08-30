@@ -32,6 +32,18 @@
   /** Upper bound on waiting for mp4box to deliver every sample. */
   const DEMUX_TIMEOUT_MS = 10000;
 
+  /**
+   * Whether the source should be handed back untouched. Integer arithmetic on
+   * purpose — the same expression runs in Kotlin, Swift and JS (CLAUDE.md
+   * §12.2), and float division would let the three drift at the boundary.
+   */
+  function keepsOriginal(compressedBytes, originalBytes, keepOriginalIfLarger, minSavingsPercent) {
+    if (!keepOriginalIfLarger || !(originalBytes > 0)) return false;
+    const pct = minSavingsPercent || 0;
+    const ceiling = originalBytes - Math.trunc((originalBytes * pct) / 100);
+    return compressedBytes >= ceiling;
+  }
+
   /** Release a WebCodecs encoder/decoder without masking the real error. */
   function closeQuietly(codec) {
     try { if (codec && codec.state !== 'closed') codec.close(); } catch (_) {}
@@ -314,8 +326,8 @@
       muxer.finalize();
       const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
 
-      if (cfg.keepOriginalIfLarger && cfg.originalSizeBytes > 0 &&
-          blob.size >= cfg.originalSizeBytes) {
+      if (keepsOriginal(blob.size, cfg.originalSizeBytes,
+          cfg.keepOriginalIfLarger, cfg.minSavingsPercent)) {
         return {
           url: url, outputUrl: url, sizeBytes: cfg.originalSizeBytes,
           width: srcW, height: srcH, durationMs,
@@ -369,8 +381,12 @@
   };
 
   // cfg: { format, quality, targetSizeKB, maxWidth, maxHeight, lossless }
-  NS.compressImage = async function (url, cfg) {
-    const blob = await (await fetch(url)).blob();
+  /**
+   * Shared image core. Takes a Blob so both entry points below — a blob: URL and
+   * raw bytes — run exactly the same encode, and returns the encoded Blob rather
+   * than an object URL so the byte path never mints one it would have to revoke.
+   */
+  async function compressImageBlob(blob, cfg) {
     const bmp = await createImageBitmap(blob);
 
     // A null/absent format keeps the source's format. Canvas can't encode HEIC
@@ -436,12 +452,11 @@
 
       // Re-encoding can end up larger than the source (already-compressed input,
       // or lossless). If so, hand back the untouched original.
-      const keepOriginal = cfg.keepOriginalIfLarger !== false;
-      if (keepOriginal && out.size >= blob.size) {
+      if (keepsOriginal(out.size, blob.size,
+          cfg.keepOriginalIfLarger !== false, cfg.minSavingsPercent)) {
         return {
-          outputPath: url,
+          blob: null,
           originalSizeBytes: blob.size,
-          compressedSizeBytes: blob.size,
           width: bmp.width, height: bmp.height,
           format: blob.type ? blob.type.replace('image/', '') : fmt,
           skipped: true,
@@ -451,14 +466,76 @@
       // requested type (WebP on older Safari), so report what was written.
       const actual = out.type ? out.type.replace('image/', '') : fmt;
       return {
-        outputPath: trackUrl(URL.createObjectURL(out)),
+        blob: out,
         originalSizeBytes: blob.size,
-        compressedSizeBytes: out.size,
         width: canvas.width, height: canvas.height, format: actual, skipped: false,
       };
     } finally {
       bmp.close();
     }
+  }
+
+  NS.compressImage = async function (url, cfg) {
+    const source = await (await fetch(url)).blob();
+    const out = await compressImageBlob(source, cfg);
+    return {
+      // Skipped: the caller's own URL is the result. `revoke` refuses to free a
+      // URL it did not mint, so handing this back cannot destroy their input.
+      outputPath: out.skipped ? url : trackUrl(URL.createObjectURL(out.blob)),
+      originalSizeBytes: out.originalSizeBytes,
+      compressedSizeBytes: out.skipped ? out.originalSizeBytes : out.blob.size,
+      width: out.width,
+      height: out.height,
+      format: out.format,
+      skipped: out.skipped,
+    };
+  };
+
+  /**
+   * Sniff the container from the leading bytes.
+   *
+   * A `Blob` built from raw bytes has an empty `type`, and the core derives
+   * "keep the source's format" from exactly that field — without this a PNG
+   * handed over as bytes would come back re-encoded as JPEG, unlike every other
+   * entry point.
+   */
+  function sniffMime(bytes) {
+    const b = bytes;
+    if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
+      return 'image/png';
+    }
+    if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+    if (b.length >= 12 &&
+        b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+        b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
+      return 'image/webp';
+    }
+    // ISO-BMFF: 'ftyp' at offset 4, brand at 8 (heic/heix/hevc/mif1).
+    if (b.length >= 12 &&
+        b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) {
+      const brand = String.fromCharCode(b[8], b[9], b[10], b[11]).toLowerCase();
+      if (brand.startsWith('hei') || brand.startsWith('hev') || brand === 'mif1') {
+        return 'image/heic';
+      }
+    }
+    return '';
+  }
+
+  /** In-memory variant: no object URL is created, so there is nothing to revoke. */
+  NS.compressImageBytes = async function (bytes, cfg) {
+    const source = new Blob([bytes], { type: sniffMime(bytes) });
+    const out = await compressImageBlob(source, cfg);
+    const data = out.skipped
+      ? bytes
+      : new Uint8Array(await out.blob.arrayBuffer());
+    return {
+      bytes: data,
+      originalSizeBytes: out.originalSizeBytes,
+      width: out.width,
+      height: out.height,
+      format: out.format,
+      skipped: out.skipped,
+    };
   };
 
   // ---- download / cleanup ------------------------------------------------

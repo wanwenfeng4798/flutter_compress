@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'flutter_compress_platform_interface.dart';
 import 'src/exceptions.dart';
@@ -85,6 +86,11 @@ class FlutterCompress {
   ///
   /// [onProgress] receives events for this job only. Provide a
   /// [cancellationToken] to abort mid-flight.
+  ///
+  /// To keep the encode running while the app is backgrounded on Android, set
+  /// [VideoCompressConfig.androidNotification] — the plugin has no notification
+  /// of its own, so without it no foreground service is started. iOS needs
+  /// nothing.
   ///
   /// [outputDirectory] chooses where the encoded file is written; when null the
   /// plugin uses its own cache directory (call [clearCache] to reclaim it).
@@ -261,6 +267,20 @@ class FlutterCompress {
       outputName: outputName,
     );
   }
+
+  /// Compress an image already in memory, returning the encoded bytes.
+  ///
+  /// Use this when the source never was a file — `image_picker`'s bytes, a
+  /// camera frame, a download — instead of writing a temp file just to hand over
+  /// a path. Nothing is written to disk, so there is no output to release.
+  ///
+  /// Images only: a video would mean copying tens of megabytes through the
+  /// platform channel in a single message.
+  Future<ImageBytesResult> compressImageBytes(
+    Uint8List source,
+    ImageCompressConfig config,
+  ) =>
+      _platform.compressImageBytes(source, config);
 
   /// Compress a list of images sequentially. Each output is auto-named from its
   /// own source (base name + timestamp).

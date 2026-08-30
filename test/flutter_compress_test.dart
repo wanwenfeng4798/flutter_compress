@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_compress/flutter_compress.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,19 +38,6 @@ void main() {
         const VideoCompressConfig(container: VideoContainer.mp4)
             .toMap()['container'],
         'mp4',
-      );
-    });
-
-    test('keepAliveInBackground defaults on and can be opted out', () {
-      // Default-on preserves the behaviour shipped before the flag existed;
-      // opting out is what lets an app drop FOREGROUND_SERVICE from its merged
-      // manifest without the encode failing (README → Android permissions).
-      expect(
-          const VideoCompressConfig().toMap()['keepAliveInBackground'], true);
-      expect(
-        const VideoCompressConfig(keepAliveInBackground: false)
-            .toMap()['keepAliveInBackground'],
-        false,
       );
     });
   });
@@ -153,6 +142,124 @@ void main() {
           throwsA(isA<AssertionError>()));
       expect(() => ImageCompressConfig(quality: 101),
           throwsA(isA<AssertionError>()));
+    });
+  });
+
+  group('androidNotification', () {
+    test('is null by default, so no service is ever started', () {
+      // The whole opt-in contract: absent config => the plugin starts nothing.
+      expect(const VideoCompressConfig().androidNotification, isNull);
+      expect(
+          const VideoCompressConfig().toMap()['androidNotification'], isNull);
+    });
+
+    test('serializes what the host supplied, with no plugin defaults', () {
+      const config = VideoCompressConfig(
+        androidNotification: AndroidNotification(
+          smallIcon: 'drawable/ic_compress',
+          title: 'Compressing video',
+        ),
+      );
+      final map = config.toMap()['androidNotification'] as Map;
+      expect(map['smallIcon'], 'drawable/ic_compress');
+      expect(map['title'], 'Compressing video');
+      // Not filled in by the plugin — the native side falls back to the title.
+      expect(map['text'], isNull);
+      expect(map['channelName'], isNull);
+    });
+
+    test('rejects empty icon or title at construction', () {
+      expect(() => AndroidNotification(smallIcon: '', title: 'x'),
+          throwsA(isA<AssertionError>()));
+      expect(() => AndroidNotification(smallIcon: 'ic_x', title: ''),
+          throwsA(isA<AssertionError>()));
+    });
+
+    test('presets do not opt into a notification on the caller behalf', () {
+      expect(const VideoCompressConfig.forSocialMedia().androidNotification,
+          isNull);
+      expect(const VideoCompressConfig.maxCompression().androidNotification,
+          isNull);
+    });
+  });
+
+  group('minSavingsPercent', () {
+    test('defaults to 0 on both configs and serializes', () {
+      expect(const VideoCompressConfig().toMap()['minSavingsPercent'], 0);
+      expect(const ImageCompressConfig().toMap()['minSavingsPercent'], 0);
+      expect(
+        const ImageCompressConfig(minSavingsPercent: 5)
+            .toMap()['minSavingsPercent'],
+        5,
+      );
+    });
+
+    test('rejects a threshold that could never be met', () {
+      // 100 would mean "skip unless the output is zero bytes".
+      expect(() => VideoCompressConfig(minSavingsPercent: 100),
+          throwsA(isA<AssertionError>()));
+      expect(() => ImageCompressConfig(minSavingsPercent: -1),
+          throwsA(isA<AssertionError>()));
+    });
+  });
+
+  group('presets', () {
+    test('forSocialMedia picks H.264 for playback compatibility', () {
+      // HEVC is smaller but upload pipelines that cannot decode it reject the
+      // file outright, so the social preset must not use it.
+      const config = VideoCompressConfig.forSocialMedia();
+      expect(config.codec, VideoCodec.h264);
+      expect(config.container, VideoContainer.mp4);
+      expect(config.maxWidth, 1080);
+    });
+
+    test('maxCompression trades quality for size', () {
+      const config = VideoCompressConfig.maxCompression();
+      expect(config.codec, VideoCodec.h265);
+      expect(config.quality, CompressQuality.veryLow);
+      expect(config.minSavingsPercent, 10);
+    });
+
+    test('image presets set only one size control each', () {
+      const avatar = ImageCompressConfig.forAvatar();
+      expect(avatar.format, ImageFormat.jpeg);
+      expect(avatar.targetSizeKB, isNull);
+
+      const social = ImageCompressConfig.forSocialMedia();
+      // Null format = keep the source's; EXIF dropped so GPS doesn't leak.
+      expect(social.format, isNull);
+      expect(social.keepExif, false);
+      expect(social.targetSizeKB, 500);
+    });
+  });
+
+  group('ImageBytesResult', () {
+    test('derives sizes from the bytes it carries', () {
+      final r = ImageBytesResult(
+        bytes: Uint8List(200),
+        originalSizeBytes: 1000,
+        width: 800,
+        height: 600,
+        format: 'jpeg',
+      );
+      expect(r.compressedSizeBytes, 200);
+      expect(r.compressionRatio, 0.2);
+      expect(r.savedPercent, 80);
+      expect(r.skipped, false);
+    });
+
+    test('parses a channel map, including the skipped path', () {
+      final r = ImageBytesResult.fromMap({
+        'bytes': Uint8List.fromList([1, 2, 3]),
+        'originalSizeBytes': 3,
+        'width': 10,
+        'height': 10,
+        'format': 'png',
+        'skipped': true,
+      });
+      expect(r.skipped, true);
+      // Skipped hands back the source bytes, so no saving is reported.
+      expect(r.savedPercent, 0);
     });
   });
 

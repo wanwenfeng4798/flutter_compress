@@ -27,4 +27,13 @@ abstract final class CompressErrorCode {
 
   /// The platform can't do this at all — e.g. a browser without WebCodecs.
   static const String unsupported = 'unsupported';
+
+  /// The host app did not declare a permission the requested operation needs.
+  ///
+  /// **Android only.** Currently raised by `saveToDownloads()` on API 28 and
+  /// below, which writes to the public Downloads folder directly and therefore
+  /// needs `WRITE_EXTERNAL_STORAGE`. API 29+ goes through MediaStore and needs
+  /// nothing. The plugin declares no permissions of its own, so this is always
+  /// something the app opts into — see the README.
+  static const String permissionDenied = 'permission_denied';
 }

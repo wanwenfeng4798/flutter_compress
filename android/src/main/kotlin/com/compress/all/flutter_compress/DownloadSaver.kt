@@ -2,8 +2,10 @@ package com.compress.all.flutter_compress
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
+import android.os.Process
 import android.provider.MediaStore
 import java.io.File
 
@@ -19,6 +21,20 @@ object DownloadSaver {
         val name = fileName ?: src.name
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Writing to the public Downloads folder directly needs the legacy
+            // permission. The plugin declares none, so fail loudly with a code
+            // the caller can act on rather than throwing an opaque IOException
+            // from deep inside the copy.
+            val write = "android.permission.WRITE_EXTERNAL_STORAGE"
+            val ok = context.checkPermission(write, Process.myPid(), Process.myUid()) ==
+                PackageManager.PERMISSION_GRANTED
+            if (!ok) {
+                throw PermissionDeniedException(
+                    "saveToDownloads() needs WRITE_EXTERNAL_STORAGE on Android 9 and below. " +
+                        "Declare it in your app's manifest (maxSdkVersion=\"28\") and request it " +
+                        "at runtime, or target API 29+ where MediaStore needs no permission.",
+                )
+            }
             @Suppress("DEPRECATION")
             val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             dir.mkdirs()

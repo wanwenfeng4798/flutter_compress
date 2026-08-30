@@ -11,6 +11,7 @@ data class ImageConfig(
     val keepExif: Boolean,
     val lossless: Boolean,
     val keepOriginalIfLarger: Boolean,
+    val minSavingsPercent: Int,
 ) {
     companion object {
         fun fromMap(m: Map<String, Any?>) = ImageConfig(
@@ -22,6 +23,7 @@ data class ImageConfig(
             keepExif = m["keepExif"] as? Boolean ?: false,
             lossless = m["lossless"] as? Boolean ?: false,
             keepOriginalIfLarger = m["keepOriginalIfLarger"] as? Boolean ?: true,
+            minSavingsPercent = (m["minSavingsPercent"] as? Number)?.toInt() ?: 0,
         )
     }
 }

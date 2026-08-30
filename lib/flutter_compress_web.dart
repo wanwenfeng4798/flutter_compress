@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:web/web.dart' as web;
@@ -47,6 +48,21 @@ external JSPromise<JSObject> _jsGetImageInfo(String url);
 
 @JS('flutterCompressWeb.compressImage')
 external JSPromise<JSObject> _jsCompressImage(String url, JSObject cfg);
+
+@JS('flutterCompressWeb.compressImageBytes')
+external JSPromise<_JsBytesResult> _jsCompressImageBytes(
+    JSUint8Array bytes, JSObject cfg);
+
+/// Typed view over the JS result. Read explicitly rather than via `dartify()`,
+/// which has no defined mapping for a `Uint8Array` nested in an object.
+extension type _JsBytesResult(JSObject _) implements JSObject {
+  external JSUint8Array get bytes;
+  external int get originalSizeBytes;
+  external int get width;
+  external int get height;
+  external String get format;
+  external bool get skipped;
+}
 
 /// Web implementation backed by WebCodecs (VideoDecoder/VideoEncoder) with
 /// mp4box.js demuxing and mp4-muxer muxing — the browser-native parallel to
@@ -228,6 +244,7 @@ class FlutterCompressWeb extends FlutterCompressPlatform {
         // for quality/bitrate modes.
         'bitrateMode': config.targetSizeMB != null ? 'constant' : 'variable',
         'keepOriginalIfLarger': config.keepOriginalIfLarger,
+        'minSavingsPercent': config.minSavingsPercent,
         'originalSizeBytes': srcBytes,
       }.jsify()! as JSObject;
 
@@ -358,6 +375,29 @@ class FlutterCompressWeb extends FlutterCompressPlatform {
       return ImageCompressResult.fromMap(res.cast<dynamic, dynamic>());
     } catch (e) {
       throw ImageCompressException('image_compress_failed', e.toString());
+    }
+  }
+
+  @override
+  Future<ImageBytesResult> compressImageBytes(
+    Uint8List source,
+    ImageCompressConfig config,
+  ) async {
+    await _ensureImageLoaded();
+    try {
+      final cfg = config.toMap().jsify()! as JSObject;
+      final res = await _jsCompressImageBytes(source.toJS, cfg).toDart;
+      return ImageBytesResult(
+        bytes: res.bytes.toDart,
+        originalSizeBytes: res.originalSizeBytes,
+        width: res.width,
+        height: res.height,
+        format: res.format,
+        skipped: res.skipped,
+      );
+    } catch (e) {
+      throw ImageCompressException(
+          CompressErrorCode.imageCompressFailed, e.toString());
     }
   }
 

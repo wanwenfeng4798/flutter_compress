@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'flutter_compress_method_channel.dart';
@@ -87,4 +89,13 @@ abstract class FlutterCompressPlatform extends PlatformInterface {
     String? outputName,
   ) =>
       throw UnimplementedError('compressImage() has not been implemented.');
+
+  /// Compress bytes in memory. Images only — a video would mean copying tens of
+  /// megabytes across the platform channel in one message.
+  Future<ImageBytesResult> compressImageBytes(
+    Uint8List source,
+    ImageCompressConfig config,
+  ) =>
+      throw UnimplementedError(
+          'compressImageBytes() has not been implemented.');
 }

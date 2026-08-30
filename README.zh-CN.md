@@ -24,7 +24,9 @@
 - 🌍 **一套 API,三个平台** —— 同一份 Dart 代码在 Android、iOS **和浏览器**(WebCodecs)都能跑,大多数同类插件根本不支持 Web。
 - 🎯 **目标大小,压得准** —— 给个目标体积,插件在各平台用同一套算法反推码率,精准命中。
 - 🎬🖼️ **视频、图片都能压** —— 两套专用且互不干扰的 API(`compress` / `compressImage`),各自为自己的媒介调优。
-- 📡 **可直接上生产** —— 实时进度、取消、顺序批量、移动端后台不中断、以及「越压越大就返回原文件」的保护。
+- 📡 **可直接上生产** —— 实时进度、取消、顺序批量、以及「越压越大就返回原文件」的保护。
+- 🧼 **不声明任何权限** —— 多数压缩插件会把一条前台服务通知(和它的权限)推进每个依赖它的 App。这里后台压缩是可选的,而通知是**你的**:你的图标、你的文案、你的渠道。
+- 🚀 **常见场景有预设** —— `forSocialMedia()`、`maxCompression()`、`forAvatar()`,不用自己调参。
 
 ## 底层实现
 
@@ -50,6 +52,7 @@
 - 🎞️ 格式:**JPEG · PNG · WebP · HEIC**(不支持时自动回退)。
 - 📐 分辨率上限,以及可选的 **EXIF** 保留(方向、GPS…)。
 - ⚡ 毫秒级,支持单张或批量。
+- 🧠 **直接压内存字节**(`compressImageBytes`)—— `image_picker` 的结果、相机帧、下载的图,都不用先落临时文件。
 
 ## 平台能力对照
 
@@ -58,15 +61,15 @@
 | 能力                            |  Android   |    iOS    |  Web  |
 |-------------------------------|:----------:|:---------:|:-----:|
 | 压缩(目标大小 / 码率 / 质量)            |     ✅      |     ✅     |   ✅   |
-| H.265 + 回退 H.264              |     ✅      |     ✅     |  ✅¹   |
+| H.265 + 回退 H.264              |     ✅      |     ✅     |   ✅   |
 | 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |
-| 帧率上限(`frameRate`)             |    ❌ ²     |     ✅     |  ❌ ²  |
-| 音频:去除(`removeAudio`)          |     ✅      |     ✅     | ❌ 恒定丢弃 |
-| 音频码率(`audioBitrateKbps`)      |    ❌ ³     |     ✅     |   ❌   |
+| 帧率上限(`frameRate`)             |     ❌      |     ✅     |   ❌   |
+| 音频:去除(`removeAudio`)          |     ✅      |     ✅     |   ❌   |
+| 音频码率(`audioBitrateKbps`)      |     ❌      |     ✅     |   ❌   |
 | 裁剪(`trim`)                    |     ✅      |     ✅     |   ❌   |
 | 缩略图 / 信息 / 预估                 |     ✅      |     ✅     |   ✅   |
 | 进度 / 取消 / 批量                  |     ✅      |     ✅     |   ✅   |
-| 后台不中断                         |   ✅ 前台服务   |  ✅ 后台任务   |  不适用  |
+| 后台不中断                         | ⚠️ 需自行开启 ⁴ |  ✅ 后台任务   |  不适用  |
 | `saveToDownloads`             | MediaStore | Documents | 浏览器下载 |
 
 ¹ Web 仅在浏览器支持 WebCodecs 的 HEVC 编码时用 H.265(如 Safari、带硬件 HEVC 的 Chrome),否则自动回退 H.264。
@@ -76,6 +79,11 @@
 
 ³ Media3 1.4.x 不暴露任何音频编码器设置,Android 使用其默认 AAC 码率。该值仍参与
 `targetSizeMB` 的预算计算。
+
+⁴ Android 需要前台服务,而它的通知必须是你的 —— 传 `androidNotification` 并声明
+`FOREGROUND_SERVICE`。两者缺一,编码就只在前台进行,**不报错**。见
+[Android 的后台压缩](#android-的后台压缩)。iOS 什么都不需要(`beginBackgroundTask`:
+无 UI、无权限)。
 
 标 ❌ 的项是**被忽略**,不是近似处理 —— 结果对象会回报实际发生了什么
 (`result.frameRate`、`result.hasAudio`、`result.durationMs`)。
@@ -88,16 +96,20 @@
 | JPEG / PNG / WebP             |     ✅      |     ✅     |   ✅   |
 | HEIC                          |    ⚠️ ¹    |     ✅     |   ❌   |
 | 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |
-| 保留 EXIF(`keepExif`)           | ⚠️ 仅 JPEG |     ✅     |   ❌   |
+| 保留 EXIF(`keepExif`)           | ⚠️ 仅 JPEG ² |   ✅     |   ❌   |
+| 压缩内存字节(`compressImageBytes`) |     ✅      |     ✅     |   ✅   |
 | `saveToDownloads`             | MediaStore | Documents | 浏览器下载 |
 
 ¹ Android 仅在设备存在 HEIC 编码器时才写 HEIC,否则回退 JPEG(实际格式在结果中返回)。
+
+² Android 会把 48 个 EXIF 标签(机身、曝光、镜头、GPS、时间)写入 JPEG 输出;iOS 直接
+整体透传源元数据;Web 的 canvas 重编码必然剥离元数据,无法绕过。
 
 ## 安装
 
 ```yaml
 dependencies:
-  flutter_compress: ^1.5.1
+  flutter_compress: ^2.0.0
 ```
 
 ## 配合 AI 助手接入
@@ -146,8 +158,9 @@ print('节省 ${result.savedPercent.toStringAsFixed(1)}% → ${result.outputPath
 | `trim`                             | `TrimRange(startMs, endMs)`。               |
 | `alignment`                        | `auto16`(默认)对齐到 `÷16`,避免边缘伪影。              |
 | `keepOriginalIfLarger`             | 压缩无益时返回原文件。                                |
+| `minSavingsPercent`                | 节省达不到这个百分比就返回原文件(0–99,默认 0)。设为 `5` 时,只压掉 3% 的结果会以 `skipped` 返回。 |
+| `androidNotification`              | 传入前台服务的通知(图标、标题、正文、渠道)即开启后台压缩;`null`(默认)则不启动服务。仅 Android。 |
 | `container`                        | `auto`(默认)尽量保持源容器(iOS 保 `.mov`/`.mp4`;Android/Web 只能 `.mp4`),或 `mp4` 强制。 |
-| `keepAliveInBackground`            | 默认开启。Android 会起一个前台服务(带通知)以便退到后台后继续编码;只在前台压缩可设为 `false`,则不会出现通知。iOS 与 Web 忽略此项。 |
 
 ## API
 
@@ -208,6 +221,17 @@ print('${r.format} ${r.width}x${r.height} • 节省 ${r.savedPercent.toStringAs
 await api.compressImage(path, const ImageCompressConfig(format: ImageFormat.webp, quality: 80));
 await api.compressImageLossless(path);   // 保持源格式、像素级
 
+// 预设 —— 不用调参
+await api.compressImage(path, const ImageCompressConfig.forAvatar());
+await api.compressImage(path, const ImageCompressConfig.forSocialMedia());
+
+// 手里已经是字节?不用先落临时文件
+final ImageBytesResult b = await api.compressImageBytes(
+  bytes,                                 // 例如 await xFile.readAsBytes()
+  const ImageCompressConfig(targetSizeKB: 200),
+);
+uploadBytes(b.bytes);                    // 不写磁盘,也没有需要释放的产物
+
 // 批量:带进度、可取消、单张失败不影响整体
 final token = CancellationToken();
 final results = await api.compressImages(
@@ -253,11 +277,12 @@ try {
 | `maxWidth` / `maxHeight` | 尺寸上限;保持比例、只缩不放。                      |
 | `keepExif`               | 保留 EXIF(方向、GPS…),默认剥离。               |
 | `keepOriginalIfLarger`   | 压缩无益时返回原文件(标记 `skipped`)。默认开启。       |
+| `minSavingsPercent`      | 节省达不到这个百分比就返回原文件(0–99,默认 0)。          |
 
 ## 各平台配置
 
-- **Android** —— 最低 SDK 24,`compileSdk 36`。共声明 4 条权限,见下方
-  [Android 权限](#android-权限);插件不会自行申请任何运行时权限。
+- **Android** —— 最低 SDK 24,`compileSdk 36`。**不声明任何权限**。见
+  [Android 权限](#android-权限) 与 [Android 的后台压缩](#android-的后台压缩)。
 - **iOS** —— 最低 13.0。用 `beginBackgroundTask` 争取短暂后台时间。若想让
   `saveToDownloads` 保存的文件在「文件」App 里可见,请在 `Info.plist` 加入
   `UIFileSharingEnabled` 与 `LSSupportsOpeningDocumentsInPlace`。
@@ -272,30 +297,97 @@ try {
 
 ### Android 权限
 
-下面每一条都会通过 manifest 合并进入**你的** App,所以这里把它们逐条列清楚。插件
-自己从不申请运行时权限 —— 什么时候向用户要权限是你的产品决策。
+**本插件不声明任何权限。** 压缩就是对你已经交过来的文件做编解码,它什么权限都不需要;而
+manifest 合并会把这里声明的任何权限推进**每一个**依赖它的 App。
 
-| 权限 | 用途 | 必需性 | 移除后的后果 |
-|---|---|---|---|
-| `FOREGROUND_SERVICE` | 让视频编码在 App 退到后台时继续 | 可选 | 插件打一条警告日志,继续编码,但不再有后台保护 |
-| `FOREGROUND_SERVICE_DATA_SYNC` | 同上,Android 14+ 强制要求的类型声明 | 可选 | 同上 |
-| `POST_NOTIFICATIONS` | 前台服务必须展示的那条通知 | 可选 | Android 13+ 不显示通知,编码照常进行 |
-| `WRITE_EXTERNAL_STORAGE`(`maxSdkVersion="28"`) | Android 9 及以下的 `saveToDownloads()` | 在 API ≤ 28 上用 `saveToDownloads` 时必需 | API ≤ 28 上 `saveToDownloads` 失败;API 29+ 走 MediaStore,不受影响 |
+插件只声明了一个 `<service>`(不是权限,不影响商店审核)—— 那个类必须在清单里才能被启动。
+但它是**惰性的**:除非你同时声明了 `FOREGROUND_SERVICE` **并且**传了
+`androidNotification`,它永远不会启动。见下方[Android 的后台压缩](#android-的后台压缩)。
 
-**只压图片,或只在前台压缩?** 传
-`VideoCompressConfig(keepAliveInBackground: false)`,前台服务就永远不会启动,然后把
-前三条从合并后的 manifest 里移掉:
+唯一的例外值得知道:`saveToDownloads()` 在 **Android 9 及以下**是直接往公共 Downloads
+目录写文件,所以需要那条老权限。API 29+ 走 MediaStore,什么都不需要。
 
 ```xml
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
-    tools:node="remove" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS"
-    tools:node="remove" />
+<!-- 只有会调用 saveToDownloads() 且要支持 Android 9 及以下时才加 -->
+<uses-permission
+    android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
 ```
 
-图片压缩本来就不会启动该服务,所以纯图片场景移除这三条没有任何代价。
+不加的话 `saveToDownloads()` 会抛 `CompressErrorCode.permissionDenied`,错误信息里会把
+这件事说清楚。插件**从不**替你申请运行时权限 —— 什么时候向用户要权限是产品决策。
+
+示例 App **声明了零个权限** —— 这正是重点:它在什么都没授权的情况下照样压缩视频和图片。
+
+### Android 的后台压缩
+
+App 退到后台后 Android 会挂起工作,所以长时间编码需要一个前台服务 —— 而前台服务必须显示
+一条通知。插件提供了这个服务,但**不提供任何自带通知**:图标、文案、渠道名都是很显眼的 UI,
+它们属于**你的** App,不属于一个库。
+
+所以是两步开启。先声明权限:
+
+```xml
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+<!-- 可选,Android 13+ 的运行时权限。不给也行,服务照样跑,只是不显示通知。 -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+再把通知传进来:
+
+```dart
+await FlutterCompress.instance.compress(
+  path,
+  const VideoCompressConfig(
+    targetSizeMB: 10,
+    androidNotification: AndroidNotification(
+      smallIcon: 'drawable/ic_compress',   // 你的资源
+      title: '正在压缩视频',                  // 你的文案、你的多语言
+      text: '点击返回 App',
+      channelName: '媒体处理',               // 显示在系统设置里的渠道名
+    ),
+  ),
+);
+```
+
+`smallIcon` 是 `"类型/名字"`,在**你的** App 资源里解析(`"mipmap/ic_launcher"` 也行;
+只写 `"ic_compress"` 等价于 `"drawable/ic_compress"`)。
+
+**三个条件全部满足才会启动服务**,而任何一条不满足都**不是错误** —— 插件记一条日志,编码
+继续,只是仅限前台:
+
+| 缺什么 | 结果 |
+|---|---|
+| 没传 `androidNotification` | 不启动服务。**这是默认行为** |
+| `smallIcon` 在你的 App 里解析不到 | 不启动服务(错误的图标在部分 OEM 上显示空白、在部分上直接抛异常) |
+| 没声明 `FOREGROUND_SERVICE` | 不启动服务 |
+
+iOS 完全不需要这一套:插件用 `beginBackgroundTask` 申请一小段后台时间,**无 UI、无权限**。
+`androidNotification` 在 iOS 和 Web 上被忽略。
+
+#### 这个 service 在你的 APK 里是可见的
+
+`<service>` 会合并进你的 manifest、编译进 APK 的二进制 `AndroidManifest.xml`,并且能通过
+`PackageManager` 读到 —— 所以 **LibChecker** 这类 APK 分析工具会列出
+`com.compress.all.flutter_compress.CompressionService`,并据此识别出你用了这个插件。
+它不会运行,但名字在那里。
+
+想追查合并后的**任何**一个元素是哪个依赖加进来的,看这份报告:
+
+```
+<你的 App>/build/app/outputs/logs/manifest-merger-<variant>-report.txt
+```
+
+每一条都会标明来源,例如
+`service#…CompressionService  ADDED from [:flutter_compress]`。
+
+如果你的 App 根本不需要后台压缩,把声明去掉即可 —— 组件列表里也就不会再有它:
+
+```xml
+<service android:name="com.compress.all.flutter_compress.CompressionService"
+    tools:node="remove" />
+```
 
 ### 原生依赖
 
