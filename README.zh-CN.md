@@ -287,7 +287,7 @@ try {
 
 ## 各平台配置
 
-- **Android** —— 最低 SDK 24,`compileSdk 36`。**不声明任何权限**。见
+- **Android** —— 最低 SDK 24,`compileSdk 37`。**不声明任何权限**。见
   [Android 权限](#android-权限) 与 [Android 的后台压缩](#android-的后台压缩)。
 - **iOS** —— 最低 13.0。用 `beginBackgroundTask` 争取短暂后台时间。若想让
   `saveToDownloads` 保存的文件在「文件」App 里可见,请在 `Info.plist` 加入

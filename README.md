@@ -302,7 +302,7 @@ narrow it, and `CompressCancelled` is a marker both cancel types implement.
 
 ## Platform setup
 
-- **Android** — min SDK 24, `compileSdk 36`. **Declares no permissions.** See
+- **Android** — min SDK 24, `compileSdk 37`. **Declares no permissions.** See
   [Android permissions](#android-permissions) and
   [Background compression](#background-compression-on-android).
 - **iOS** — min 13.0. Uses `beginBackgroundTask` for a short background grace
