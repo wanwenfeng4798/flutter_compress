@@ -105,8 +105,8 @@ class CompressionEngine(
         val originalSize = File(path).length()
         val durationMs = clampDuration(info["durationMs"] as Long, config)
         val (tw, th) = SizeMath.targetDimensions(srcW, srcH, config)
-        val videoMime = resolveVideoMime(config.codec)
-        val usedCodec = if (videoMime == MimeTypes.VIDEO_H265) "h265" else "h264"
+        var videoMime = resolveVideoMime(config.codec, tw, th)
+        var usedCodec = if (videoMime == MimeTypes.VIDEO_H265) "h265" else "h264"
         val videoBps = SizeMath.videoBitrateBps(config, durationMs, info["bitrateKbps"] as Int, th)
         // Android's Media3 muxer only produces mp4, so the extension is always
         // mp4 regardless of the requested container.
@@ -118,9 +118,17 @@ class CompressionEngine(
         var actualHasAudio: Boolean? = null
         var outDurationMs = durationMs
         try {
-            val export = runTransformer(
-                id, buildEditedItem(path, config, srcW, srcH, tw, th), outFile, videoMime,
-                encoderSettings(config, videoMime, videoBps), config.notification,
+            val export = exportWithFallback(
+                id = id,
+                editedItem = buildEditedItem(path, config, srcW, srcH, tw, th),
+                outFile = outFile,
+                config = config,
+                videoBps = videoBps,
+                videoMime = videoMime,
+                onMimeFallback = { mime ->
+                    videoMime = mime
+                    usedCodec = if (mime == MimeTypes.VIDEO_H265) "h265" else "h264"
+                },
             )
             if (export.durationMs > 0) outDurationMs = export.durationMs
             if (export.videoFrameCount > 0 && export.durationMs > 0) {
@@ -207,15 +215,18 @@ class CompressionEngine(
      * 80 MB target could land near 20 MB. Quality modes stay VBR, where letting
      * the bitrate float with content is exactly the point.
      *
-     * Falls back to VBR when no encoder for [videoMime] advertises CBR.
+     * Falls back to VBR when no encoder for [videoMime] advertises CBR, or when
+     * [forceVbr] is set after a failed CBR attempt (Media3 does not fall back
+     * bitrateMode itself — see DefaultEncoderFactory docs).
      */
     private fun encoderSettings(
         config: CompressionConfig,
         videoMime: String,
         videoBps: Int,
+        forceVbr: Boolean = false,
     ): VideoEncoderSettings {
         val builder = VideoEncoderSettings.Builder().setBitrate(videoBps)
-        val cbrSupported = supportsCbr(videoMime)
+        val cbrSupported = !forceVbr && supportsCbr(videoMime)
         val useCbr = config.targetSizeMB != null && cbrSupported
         if (useCbr) {
             builder.setBitrateMode(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
@@ -229,6 +240,66 @@ class CompressionEngine(
         return builder.build()
     }
 
+    /**
+     * Run [runTransformer], retrying when the device rejects the encode format.
+     *
+     * Order: requested mime (+ CBR if target-size) → same mime with VBR → H.264
+     * (+ CBR then VBR). Advertised CBR/HEVC support is often optimistic on OEM
+     * builds; Media3 error 4003 ("encoding format not supported") is the usual
+     * signal, and `VideoEncoderSettings.bitrateMode` has no built-in fallback.
+     */
+    private suspend fun exportWithFallback(
+        id: String,
+        editedItem: EditedMediaItem,
+        outFile: File,
+        config: CompressionConfig,
+        videoBps: Int,
+        videoMime: String,
+        onMimeFallback: (String) -> Unit,
+    ): ExportResult {
+        var mime = videoMime
+        var forceVbr = false
+        var lastError: Throwable? = null
+
+        suspend fun once(): ExportResult =
+            runTransformer(
+                id,
+                editedItem,
+                outFile,
+                mime,
+                encoderSettings(config, mime, videoBps, forceVbr),
+                config.notification,
+            )
+
+        repeat(4) {
+            try {
+                return once()
+            } catch (e: Throwable) {
+                if (e is CompressionCancelledException) throw e
+                lastError = e
+                if (!isEncodingUnsupported(e)) throw e
+
+                val usedCbr = config.targetSizeMB != null && !forceVbr && supportsCbr(mime)
+                when {
+                    usedCbr -> {
+                        Log.w(TAG, "encode unsupported with CBR ($mime); retrying VBR: ${describeThrowable(e)}")
+                        forceVbr = true
+                        outFile.delete()
+                    }
+                    mime == MimeTypes.VIDEO_H265 -> {
+                        Log.w(TAG, "HEVC encode unsupported; falling back to H.264: ${describeThrowable(e)}")
+                        mime = MimeTypes.VIDEO_H264
+                        onMimeFallback(mime)
+                        forceVbr = false
+                        outFile.delete()
+                    }
+                    else -> throw e
+                }
+            }
+        }
+        throw lastError ?: IllegalStateException("exportWithFallback exhausted retries")
+    }
+
     private fun supportsCbr(videoMime: String): Boolean =
         EncoderUtil.getSupportedEncoders(videoMime).any { encoder ->
             EncoderUtil.isBitrateModeSupported(
@@ -236,6 +307,23 @@ class CompressionEngine(
             )
         }
 
+    /** True when Media3 rejected the encoder Format / init (retry may help). */
+    private fun isEncodingUnsupported(t: Throwable): Boolean {
+        var cur: Throwable? = t
+        while (cur != null) {
+            if (cur is ExportException) {
+                return cur.errorCode == ExportException.ERROR_CODE_ENCODING_FORMAT_UNSUPPORTED ||
+                    cur.errorCode == ExportException.ERROR_CODE_ENCODER_INIT_FAILED
+            }
+            cur = cur.cause
+        }
+        return false
+    }
+
+    private fun describeThrowable(t: Throwable): String {
+        val export = generateSequence(t) { it.cause }.filterIsInstance<ExportException>().firstOrNull()
+        return if (export != null) describe(export) else (t.message ?: t.toString())
+    }
     private suspend fun runTransformer(
         id: String,
         editedItem: EditedMediaItem,
@@ -380,10 +468,28 @@ class CompressionEngine(
         return if (s != null && e != null) (e - s).coerceAtLeast(1) else fullDurationMs
     }
 
-    /** Requested codec → mime, falling back to H.264 when there's no HEVC encoder. */
-    private fun resolveVideoMime(codec: String): String {
-        val hasHevc = EncoderUtil.getSupportedEncoders(MimeTypes.VIDEO_H265).isNotEmpty()
-        return if (codec == "h265" && hasHevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264
+    /**
+     * Requested codec → mime.
+     *
+     * Falls back to H.264 when there is no HEVC encoder, or when none of the
+     * advertised HEVC encoders claim to support [width]×[height]. Devices often
+     * list HEVC but still reject awkward phone resolutions (e.g. 2400×1080) at
+     * configure time — [exportWithFallback] covers that remaining gap.
+     */
+    private fun resolveVideoMime(codec: String, width: Int, height: Int): String {
+        if (codec != "h265") return MimeTypes.VIDEO_H264
+        val encoders = EncoderUtil.getSupportedEncoders(MimeTypes.VIDEO_H265)
+        if (encoders.isEmpty()) return MimeTypes.VIDEO_H264
+        if (width > 0 && height > 0) {
+            val sizeOk = encoders.any {
+                EncoderUtil.isSizeSupported(it, MimeTypes.VIDEO_H265, width, height)
+            }
+            if (!sizeOk) {
+                Log.w(TAG, "no HEVC encoder for ${width}x${height}; using H.264")
+                return MimeTypes.VIDEO_H264
+            }
+        }
+        return MimeTypes.VIDEO_H265
     }
 
     private fun describe(e: ExportException): String = buildString {
