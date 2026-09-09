@@ -12,7 +12,7 @@ Both are shipped **unmodified** from upstream.
 | `mp4box.all.min.js` | 144 KB | [gpac/mp4box.js](https://github.com/gpac/mp4box.js) | BSD-3-Clause |
 | `mp4-muxer.js` | 72 KB | [Vanilagy/mp4-muxer](https://github.com/Vanilagy/mp4-muxer) | MPL-2.0 |
 
-`flutter_compress_web.js` (20 KB) is this plugin's own code and is covered by the
+`flutter_compress_pro_web.js` (20 KB) is this plugin's own code and is covered by the
 plugin's MIT licence.
 
 ## What this means for you

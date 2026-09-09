@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 
 import '../app_theme.dart';
 import '../l10n/app_localizations.dart';

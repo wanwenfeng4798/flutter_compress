@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 import android.content.Context
 import android.media.MediaCodecInfo
@@ -11,7 +11,6 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
-import androidx.media3.transformer.DefaultMuxer
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.EncoderUtil
@@ -254,12 +253,10 @@ class CompressionEngine(
             .setVideoMimeType(videoMime)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setEncoderFactory(encoderFactory)
-            // Use the default muxer factory. Its `long` overload is NOT a timeout:
-            // in Media3 1.4.x that parameter is `videoDurationMs`, so passing a
-            // "generous timeout" told the muxer the video was that many ms long
-            // and truncated every longer input to it. The no-arg constructor
-            // passes C.TIME_UNSET, i.e. "use the real duration".
-            .setMuxerFactory(DefaultMuxer.Factory())
+            // Do not pass a long to any muxer Factory — in older Media3 that
+            // overload meant videoDurationMs and truncated longer inputs.
+            // Media3 1.9+ defaults to InAppMp4Muxer; omit setMuxerFactory so we
+            // get that default without depending on DefaultMuxer package moves.
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, result: ExportResult) {
                     finishJob()

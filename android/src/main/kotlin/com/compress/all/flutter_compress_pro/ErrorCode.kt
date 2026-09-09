@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 /**
  * Channel error codes. Mirrors `lib/src/error_codes.dart` and `ErrorCode.swift` —

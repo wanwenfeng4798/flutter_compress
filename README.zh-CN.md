@@ -1,27 +1,28 @@
-# flutter_compress
+# flutter_compress_pro
 
-[![pub package](https://img.shields.io/pub/v/flutter_compress.svg)](https://pub.dev/packages/flutter_compress)
-[![platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-blue.svg)](https://pub.dev/packages/flutter_compress)
+[![pub package](https://img.shields.io/pub/v/flutter_compress_pro.svg)](https://pub.dev/packages/flutter_compress_pro)
+[![platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-blue.svg)](https://pub.dev/packages/flutter_compress_pro)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**一个插件搞定视频和图片压缩 —— 覆盖 Android / iOS / Web,且不依赖 FFmpeg。**
+**一个插件搞定视频和图片压缩 —— 覆盖 Android / iOS / Web / macOS / Windows / Linux。**
 
-每个平台都使用系统原生的硬件加速编码器,压缩又快、体积又小、画质原生级 ——
-**不用打包 20MB 的 FFmpeg、没有 GPL 授权顾虑、不额外增加包体**。API 以**意图**为核心
+移动端、Web、macOS 使用系统编码器（**不用 FFmpeg**）。Windows / Linux 使用
+**FFmpeg**：优先系统 `PATH`；若没有，首次使用时**自动下载** GPL 静态构建并缓存到
+`~/.cache/flutter_compress_pro/ffmpeg/`。API 以**意图**为核心
 (「压到约 10MB」「码率减半」「压到 200KB 以内」),而不是让你去猜各种晦涩的质量档。
 
 > English docs: [README.md](README.md)
 
-**🌐 [点此在浏览器中在线体验 Web 版 →](https://flutter-compress.ckdgdgdg.workers.dev/)**
+**🌐 [点此在浏览器中在线体验 Web 版 →](https://flutter-compress-pro.ckdgdgdg.workers.dev/)**
 
 | | |
 |:---:|:---:|
-| ![预览图 1](https://flutter-compress.ckdgdgdg.workers.dev/img/compress_zh_1.jpeg) | ![预览图 2](https://flutter-compress.ckdgdgdg.workers.dev/img/compress_zh_2.jpeg) |
+| ![预览图 1](https://flutter-compress-pro.ckdgdgdg.workers.dev/img/compress_zh_1.jpeg) | ![预览图 2](https://flutter-compress-pro.ckdgdgdg.workers.dev/img/compress_zh_2.jpeg) |
 
 ## 为什么选它?
 
-- 🪶 **无 FFmpeg、无 GPL、不臃肿** —— 除了系统自带的编码器,什么都不用打包。App 体积小、授权干净。
-- 🌍 **一套 API,三个平台** —— 同一份 Dart 代码在 Android、iOS **和浏览器**(WebCodecs)都能跑,大多数同类插件根本不支持 Web。
+- 🪶 **移动端 / Web / macOS 无 FFmpeg** —— 只用系统编码器。**Windows / Linux 使用 FFmpeg**（系统 PATH，或首次使用自动下载 —— 见安装说明）。
+- 🌍 **一套 API,六个平台** —— 同一份 Dart 代码在 Android、iOS、Web、macOS、Windows、Linux 都能跑。
 - 🎯 **目标大小,压得准** —— 给个目标体积,插件在各平台用同一套算法反推码率,精准命中。
 - 🎬🖼️ **视频、图片都能压** —— 两套专用且互不干扰的 API(`compress` / `compressImage`),各自为自己的媒介调优。
 - 📡 **可直接上生产** —— 实时进度、取消、顺序批量、以及「越压越大就返回原文件」的保护。
@@ -30,18 +31,23 @@
 
 ## 底层实现
 
-| 平台 | 视频引擎 | 图片引擎 |
-|---|---|---|
-| **Android** | Media3 `Transformer`(Google 维护、硬件加速) | `Bitmap` |
-| **iOS** | 手写 `AVAssetReader`/`AVAssetWriter`(可精确控制码率) | ImageIO |
-| **Web** | WebCodecs + `mp4box.js` / `mp4-muxer`(约 0.2MB,非 FFmpeg) | Canvas |
+| 平台 | 视频引擎 | 图片引擎 | 使用 FFmpeg？ | 代码位置 |
+|---|---|---|---|---|
+| **Android** | Media3 `Transformer`(硬件加速) | `Bitmap` | **否** | `android/` |
+| **iOS** | `AVAssetReader`/`AVAssetWriter` | ImageIO | **否** | 共用 `darwin/` |
+| **Web** | WebCodecs + `mp4box.js` / `mp4-muxer` | Canvas | **否** | `lib/flutter_compress_pro_web.dart` |
+| **macOS** | AVFoundation（与 iOS 同一套源码） | ImageIO | **否** | 共用 `darwin/` |
+| **Windows** | `ffmpeg`/`ffprobe`（PATH 或自动下载） | FFmpeg | **是** | 共用 `lib/src/desktop/` |
+| **Linux** | `ffmpeg`/`ffprobe`（PATH 或自动下载） | FFmpeg | **是** | 共用 `lib/src/desktop/` |
+
+iOS / macOS 通过 Flutter [`sharedDarwinSource`](https://docs.flutter.dev/packages-and-plugins/developing-packages) 共用一份 Swift（与 [kinetic_player/darwin](https://github.com/wanwenfeng4798/kinetic_player/tree/main/darwin) 相同做法）。
 
 ## 特性
 
 ### 🎬 视频 —— `compress`
 
 - 🎯 **目标大小**,或显式**码率**、**质量百分比**、**预设档位**。
-- 🧬 **H.265(HEVC)+ 自动回退 H.264**,三端通用。
+- 🧬 **H.265(HEVC)+ 自动回退 H.264**,六端通用。
 - 📉 分辨率上限、帧率上限、去音轨、裁剪、`÷16` 对齐。
 - 🖼️ 缩略图、媒体信息、以及压缩前的**体积预估**(不编码)。
 - 📡 实时进度、取消、顺序批量。
@@ -58,58 +64,58 @@
 
 ### 🎬 视频
 
-| 能力                            |  Android   |    iOS    |  Web  |
-|-------------------------------|:----------:|:---------:|:-----:|
-| 压缩(目标大小 / 码率 / 质量)            |     ✅      |     ✅     |   ✅   |
-| H.265 + 回退 H.264              |     ✅      |     ✅     |   ✅   |
-| 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |
-| 帧率上限(`frameRate`)             |     ❌      |     ✅     |   ❌   |
-| 音频:去除(`removeAudio`)          |     ✅      |     ✅     |   ❌   |
-| 音频码率(`audioBitrateKbps`)      |     ❌      |     ✅     |   ❌   |
-| 裁剪(`trim`)                    |     ✅      |     ✅     |   ❌   |
-| 缩略图 / 信息 / 预估                 |     ✅      |     ✅     |   ✅   |
-| 进度 / 取消 / 批量                  |     ✅      |     ✅     |   ✅   |
-| 后台不中断                         | ⚠️ 需自行开启 ⁴ |  ✅ 后台任务   |  不适用  |
-| `saveToDownloads`             | MediaStore | Documents | 浏览器下载 |
+| 能力                            |  Android   |    iOS    |  Web  |  macOS  | Windows / Linux |
+|-------------------------------|:----------:|:---------:|:-----:|:-------:|:---------------:|
+| 压缩(目标大小 / 码率 / 质量)            |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| H.265 + 回退 H.264              |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| 帧率上限(`frameRate`)             |     ❌ ²    |     ✅     |  ❌ ²  |    ✅    |        ✅        |
+| 音频:去除(`removeAudio`)          |     ✅      |     ✅     |   ❌   |    ✅    |        ✅        |
+| 音频码率(`audioBitrateKbps`)      |     ❌ ³    |     ✅     |   ❌   |    ✅    |        ✅        |
+| 裁剪(`trim`)                    |     ✅      |     ✅     |   ❌   |    ✅    |        ✅        |
+| 缩略图 / 信息 / 预估                 |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| 进度 / 取消 / 批量                  |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| 后台不中断                         | ⚠️ 需自行开启 ⁴ |  ✅ 后台任务   |  不适用  |   不适用   |       不适用       |
+| `saveToDownloads`             | MediaStore | Documents | 浏览器下载 | ~/Downloads | ~/Downloads |
 
-¹ Web 仅在浏览器支持 WebCodecs 的 HEVC 编码时用 H.265(如 Safari、带硬件 HEVC 的 Chrome),否则自动回退 H.264。
+¹ Web 仅在浏览器支持 WebCodecs 的 HEVC 编码时用 H.265(如 Safari、带硬件 HEVC 的 Chrome),否则自动回退 H.264。Windows / Linux 在有 `libx265` 时编码 HEVC(自动下载包含此编码器),失败则回退 `libx264`。
 
-² 只有 iOS 能真正抽帧。Media3 没有抽帧效果,Web 管线对每一个解码帧都重新编码 ——
-这两端的 `frameRate` 只影响码率/关键帧计算。实际帧率请读 `result.frameRate`。
+² 只有 iOS、macOS、Windows、Linux 能真正抽帧。Media3 没有抽帧效果,Web 管线对每一个解码帧都重新编码 —— Android / Web 上 `frameRate` 只影响码率/关键帧计算。实际帧率请读 `result.frameRate`。
 
-³ Media3 1.4.x 不暴露任何音频编码器设置,Android 使用其默认 AAC 码率。该值仍参与
+³ Media3 不暴露任何音频编码器设置,Android 使用其默认 AAC 码率。该值仍参与
 `targetSizeMB` 的预算计算。
 
 ⁴ Android 需要前台服务,而它的通知必须是你的 —— 传 `androidNotification` 并声明
 `FOREGROUND_SERVICE`。两者缺一,编码就只在前台进行,**不报错**。见
 [Android 的后台压缩](#android-的后台压缩)。iOS 什么都不需要(`beginBackgroundTask`:
-无 UI、无权限)。
+无 UI、无权限)。桌面端无对应机制。
 
 标 ❌ 的项是**被忽略**,不是近似处理 —— 结果对象会回报实际发生了什么
 (`result.frameRate`、`result.hasAudio`、`result.durationMs`)。
 
 ### 🖼️ 图片
 
-| 能力                            |  Android   |    iOS    |  Web  |
-|-------------------------------|:----------:|:---------:|:-----:|
-| 压缩(目标大小 / 质量)                 |     ✅      |     ✅     |   ✅   |
-| JPEG / PNG / WebP             |     ✅      |     ✅     |   ✅   |
-| HEIC                          |    ⚠️ ¹    |     ✅     |   ❌   |
-| 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |
-| 保留 EXIF(`keepExif`)           | ⚠️ 仅 JPEG ² |   ✅     |   ❌   |
-| 压缩内存字节(`compressImageBytes`) |     ✅      |     ✅     |   ✅   |
-| `saveToDownloads`             | MediaStore | Documents | 浏览器下载 |
+| 能力                            |  Android   |    iOS    |  Web  |  macOS  | Windows / Linux |
+|-------------------------------|:----------:|:---------:|:-----:|:-------:|:---------------:|
+| 压缩(目标大小 / 质量)                 |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| JPEG / PNG / WebP             |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| HEIC                          |    ⚠️ ¹    |     ✅     |   ❌   |    ✅    |   ❌ → JPEG     |
+| 分辨率上限(`maxWidth`/`maxHeight`) |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| 保留 EXIF(`keepExif`)           | ⚠️ 仅 JPEG ² |   ✅     |   ❌   |    ✅    |  ⚠️ JPEG ³     |
+| 压缩内存字节(`compressImageBytes`) |     ✅      |     ✅     |   ✅   |    ✅    |        ✅        |
+| `saveToDownloads`             | MediaStore | Documents | 浏览器下载 | ~/Downloads | ~/Downloads |
 
-¹ Android 仅在设备存在 HEIC 编码器时才写 HEIC,否则回退 JPEG(实际格式在结果中返回)。
+¹ Android 仅在设备存在 HEIC 编码器时才写 HEIC,否则回退 JPEG(实际格式在结果中返回)。Windows / Linux 请求 HEIC 时一律写成 JPEG。
 
-² Android 会把 48 个 EXIF 标签(机身、曝光、镜头、GPS、时间)写入 JPEG 输出;iOS 直接
-整体透传源元数据;Web 的 canvas 重编码必然剥离元数据,无法绕过。
+² Android 会把 48 个 EXIF 标签(机身、曝光、镜头、GPS、时间)写入 JPEG 输出;iOS / macOS 整体透传源元数据;Web 的 canvas 重编码必然剥离元数据,无法绕过。
+
+³ Windows / Linux 用 FFmpeg `-map_metadata`(保留)或 `-map_metadata -1`(剥离);JPEG 可靠,其他格式取决于封装器。
 
 ## 安装
 
 ```yaml
 dependencies:
-  flutter_compress: ^2.0.0
+  flutter_compress_pro: ^0.1.0
 ```
 
 ## 配合 AI 助手接入
@@ -117,13 +123,13 @@ dependencies:
 把 **[llm-guide.md](llm-guide.md)** 交给 Claude Code、Cursor、Copilot 或任意 LLM
 —— 本指南将引导助手完成整个集成过程。
 
-> 读一下 https://raw.githubusercontent.com/chenkaiHere/flutter_compress/master/llm-guide.md
+> 读一下 https://raw.githubusercontent.com/wanwenfeng4798/flutter_compress_pro/master/llm-guide.md
 > ,然后在这个页面里加上视频压缩。
 
 ## 快速上手
 
 ```dart
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 
 final result = await FlutterCompress.instance.compress(
   inputPath,
@@ -293,7 +299,7 @@ try {
   选文件并传 `xFile.path`(在 web 上就是 `blob:` URL)。
   结果下载或上传完后请**调用 `releaseOutput(result.outputPath)`** —— 否则浏览器会把
   整个编码结果在页面生命周期内一直留在内存里(`clearCache()` 可一次性释放全部)。
-  可直接在 [在线 Demo](https://flutter-compress.ckdgdgdg.workers.dev/) 里试用。
+  可直接在 [在线 Demo](https://flutter-compress-pro.ckdgdgdg.workers.dev/) 里试用。
 
 ### Android 权限
 
@@ -370,7 +376,7 @@ iOS 完全不需要这一套:插件用 `beginBackgroundTask` 申请一小段后�
 
 `<service>` 会合并进你的 manifest、编译进 APK 的二进制 `AndroidManifest.xml`,并且能通过
 `PackageManager` 读到 —— 所以 **LibChecker** 这类 APK 分析工具会列出
-`com.compress.all.flutter_compress.CompressionService`,并据此识别出你用了这个插件。
+`com.compress.all.flutter_compress_pro.CompressionService`,并据此识别出你用了这个插件。
 它不会运行,但名字在那里。
 
 想追查合并后的**任何**一个元素是哪个依赖加进来的,看这份报告:
@@ -380,12 +386,12 @@ iOS 完全不需要这一套:插件用 `beginBackgroundTask` 申请一小段后�
 ```
 
 每一条都会标明来源,例如
-`service#…CompressionService  ADDED from [:flutter_compress]`。
+`service#…CompressionService  ADDED from [:flutter_compress_pro]`。
 
 如果你的 App 根本不需要后台压缩,把声明去掉即可 —— 组件列表里也就不会再有它:
 
 ```xml
-<service android:name="com.compress.all.flutter_compress.CompressionService"
+<service android:name="com.compress.all.flutter_compress_pro.CompressionService"
     tools:node="remove" />
 ```
 
@@ -393,9 +399,14 @@ iOS 完全不需要这一套:插件用 `beginBackgroundTask` 申请一小段后�
 
 | 依赖 | 版本 | 未压缩体积 | 说明 |
 |---|---|---|---|
-| `androidx.media3:media3-transformer` 及 `-effect`、`-common`、`-muxer` | 1.4.1 | 含传递依赖(ExoPlayer 等)约 3.4 MB AAR | 视频管线。R8 会裁掉相当大一部分,请以自己的 release 包实测为准 |
-| `androidx.core:core-ktx` | 1.15.0 | 约 0.2 MB | 几乎必然已存在 —— Flutter 本身就会引入 `androidx.core` |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.8.1 | 约 20 KB | 通常也已存在 |
+| `androidx.media3:media3-transformer` 及 `-effect`、`-common`、`-muxer` | 1.10.1 | 含传递依赖(ExoPlayer 等) AAR | 视频管线。R8 会裁掉相当大一部分,请以自己的 release 包实测为准 |
+| `androidx.core:core-ktx` | 1.19.0 | 约 0.2 MB | 几乎必然已存在 —— Flutter 本身就会引入 `androidx.core` |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.11.0 | 约 20 KB | 通常也已存在 |
+
+iOS / macOS / Web **没有**第三方原生依赖。Windows / Linux：优先系统 FFmpeg；若无，
+首次使用会自动下载 **GPL** 静态构建（含 libx264/libx265）到
+`~/.cache/flutter_compress_pro/ffmpeg/`。也可用 `FLUTTER_COMPRESS_PRO_FFMPEG` /
+`FLUTTER_COMPRESS_PRO_FFPROBE`，或 `FLUTTER_COMPRESS_PRO_NO_FFMPEG_DOWNLOAD=1` 禁止下载。
 
 iOS 与 Web **不引入任何第三方原生依赖**:iOS 只用 SDK 自带的 AVFoundation 与
 ImageIO,Web 用浏览器的 WebCodecs 加两个内置 JS(体积与许可证见

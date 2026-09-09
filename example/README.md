@@ -1,6 +1,6 @@
-# flutter_compress_example
+# flutter_compress_pro_example
 
-Demonstrates how to use the flutter_compress plugin.
+Demonstrates how to use the flutter_compress_pro plugin.
 
 ## Getting Started
 

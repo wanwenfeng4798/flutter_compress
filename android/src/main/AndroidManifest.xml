@@ -15,7 +15,7 @@
       It is, however, VISIBLE. This element merges into the app's manifest, gets
       compiled into the APK's binary AndroidManifest.xml, and is readable through
       PackageManager — so APK inspectors such as LibChecker list
-      `com.compress.all.flutter_compress.CompressionService` and can fingerprint
+      `com.compress.all.flutter_compress_pro.CompressionService` and can fingerprint
       this plugin from it. To trace any merged element back to its origin, read
       `<app>/build/app/outputs/logs/manifest-merger-<variant>-report.txt`; each
       entry names the module that added it.
@@ -23,7 +23,7 @@
       Apps that never want background compression can drop it entirely, which
       also removes it from that component listing:
 
-          <service android:name="com.compress.all.flutter_compress.CompressionService"
+          <service android:name="com.compress.all.flutter_compress_pro.CompressionService"
               tools:node="remove" />
     -->
     <application>
@@ -42,10 +42,10 @@
             -->
             <meta-data
                 android:name="io.pub.package"
-                android:value="flutter_compress" />
+                android:value="flutter_compress_pro" />
             <meta-data
                 android:name="io.pub.package.url"
-                android:value="https://pub.dev/packages/flutter_compress" />
+                android:value="https://pub.dev/packages/flutter_compress_pro" />
         </service>
     </application>
 </manifest>

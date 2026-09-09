@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'flutter_compress_platform_interface.dart';
+import 'flutter_compress_pro_platform_interface.dart';
 import 'src/exceptions.dart';
 import 'src/image_models.dart';
 import 'src/models.dart';
@@ -11,6 +11,9 @@ export 'src/exceptions.dart';
 export 'src/image_models.dart';
 export 'src/models.dart';
 export 'src/size_math.dart';
+// Exposes [FlutterCompressDesktop] for the generated plugin registrant on
+// Linux/Windows without pulling `dart:io` into web builds.
+export 'src/desktop/desktop_export.dart';
 
 /// A cancellation handle for one or more compression jobs.
 ///
@@ -79,8 +82,9 @@ class FlutterCompress {
 
   /// Estimate the output size/bitrate for [config] without encoding.
   Future<CompressionEstimate> estimate(
-          String path, VideoCompressConfig config) =>
-      _platform.estimate(path, config);
+    String path,
+    VideoCompressConfig config,
+  ) => _platform.estimate(path, config);
 
   /// Compress a single video.
   ///
@@ -120,7 +124,12 @@ class FlutterCompress {
     }
     try {
       return await _platform.compress(
-          id, path, config, outputDirectory, outputName);
+        id,
+        path,
+        config,
+        outputDirectory,
+        outputName,
+      );
     } finally {
       await sub?.cancel();
       cancellationToken?._unbind(id);
@@ -151,14 +160,17 @@ class FlutterCompress {
         throw VideoCompressCancelledException();
       }
       try {
-        results.add(await compress(
-          paths[i],
-          config,
-          onProgress:
-              onItemProgress == null ? null : (p) => onItemProgress(i, p),
-          cancellationToken: cancellationToken,
-          outputDirectory: outputDirectory,
-        ));
+        results.add(
+          await compress(
+            paths[i],
+            config,
+            onProgress: onItemProgress == null
+                ? null
+                : (p) => onItemProgress(i, p),
+            cancellationToken: cancellationToken,
+            outputDirectory: outputDirectory,
+          ),
+        );
       } catch (e) {
         // A cancel is for the whole batch, never just this item.
         if (!continueOnError || e is CompressCancelled) rethrow;
@@ -194,13 +206,12 @@ class FlutterCompress {
     int positionMs = 0,
     int quality = 80,
     int? maxWidth,
-  }) =>
-      _platform.getThumbnail(
-        path,
-        positionMs: positionMs,
-        quality: quality,
-        maxWidth: maxWidth,
-      );
+  }) => _platform.getThumbnail(
+    path,
+    positionMs: positionMs,
+    quality: quality,
+    maxWidth: maxWidth,
+  );
 
   /// Delete temporary files this plugin produced. On web this revokes every
   /// output blob: URL the engine handed out.
@@ -279,8 +290,7 @@ class FlutterCompress {
   Future<ImageBytesResult> compressImageBytes(
     Uint8List source,
     ImageCompressConfig config,
-  ) =>
-      _platform.compressImageBytes(source, config);
+  ) => _platform.compressImageBytes(source, config);
 
   /// Compress a list of images sequentially. Each output is auto-named from its
   /// own source (base name + timestamp).
@@ -311,11 +321,13 @@ class FlutterCompress {
         throw ImageCompressCancelledException();
       }
       try {
-        out.add(await compressImage(
-          paths[i],
-          config,
-          outputDirectory: outputDirectory,
-        ));
+        out.add(
+          await compressImage(
+            paths[i],
+            config,
+            outputDirectory: outputDirectory,
+          ),
+        );
       } catch (e) {
         if (!continueOnError) rethrow;
         onItemError?.call(i, paths[i], e);

@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_theme.dart';
@@ -86,12 +86,10 @@ class _CompressPageState extends State<CompressPage> {
 
   Future<void> _pickVideo() async {
     final l10n = AppLocalizations.of(context);
-    final result = await FilePicker.pickFiles(
-      type: FileType.video,
-      withData: kIsWeb,
-    );
-    // xFile.path is the real path on native and a blob: URL on web.
-    final path = result?.files.single.xFile.path;
+    // pickFile() returns a single PlatformFile; xFile.path is a real path on
+    // native and a blob: URL on web.
+    final file = await FilePicker.pickFile(type: FileType.video);
+    final path = file?.xFile.path;
     if (path == null || path.isEmpty) return;
     setState(() {
       _inputPath = path;

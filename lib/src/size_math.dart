@@ -52,8 +52,8 @@ abstract final class SizeMath {
     if (explicit != null) return explicit * 1000;
 
     // A percentage of the *source* bitrate. <= 100 means we never re-inflate.
-    final percent =
-        (config.qualityPercent ?? _presetPercent(config.quality)).clamp(1, 100);
+    final percent = (config.qualityPercent ?? _presetPercent(config.quality))
+        .clamp(1, 100);
     final srcBps = sourceBitrateKbps * 1000;
     if (srcBps > 0) {
       return _atLeastMin((srcBps * percent / 100.0).toInt());
@@ -98,11 +98,11 @@ abstract final class SizeMath {
   }
 
   static int _presetPercent(CompressQuality q) => switch (q) {
-        CompressQuality.high => 80,
-        CompressQuality.medium => 50,
-        CompressQuality.low => 30,
-        CompressQuality.veryLow => 15,
-      };
+    CompressQuality.high => 80,
+    CompressQuality.medium => 50,
+    CompressQuality.low => 30,
+    CompressQuality.veryLow => 15,
+  };
 
   /// Clamp to the floor only. A `clamp(min, max)` with a source bitrate below
   /// [minVideoBps] would make `lower > upper` and throw.

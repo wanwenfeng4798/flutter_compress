@@ -1,28 +1,29 @@
-# flutter_compress
+# flutter_compress_pro
 
-[![pub package](https://img.shields.io/pub/v/flutter_compress.svg)](https://pub.dev/packages/flutter_compress)
-[![platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-blue.svg)](https://pub.dev/packages/flutter_compress)
+[![pub package](https://img.shields.io/pub/v/flutter_compress_pro.svg)](https://pub.dev/packages/flutter_compress_pro)
+[![platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-blue.svg)](https://pub.dev/packages/flutter_compress_pro)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**One plugin to compress both video and images — on Android, iOS *and* Web — with no FFmpeg.**
+**One plugin to compress both video and images — on Android, iOS, Web, macOS, Windows and Linux.**
 
-Every platform uses its own hardware-accelerated encoder, so output is fast,
-small, and native-quality — with **no 20 MB FFmpeg binary, no GPL, and nothing
-extra to ship**. And the API speaks *intent* — "make it ~10 MB", "half the
-bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs.
+Mobile, Web and macOS use each platform's own encoders (**no FFmpeg**). Windows and
+Linux use **FFmpeg**: system install on `PATH` if present, otherwise the plugin
+**auto-downloads** a GPL static build on first use (cached under
+`~/.cache/flutter_compress_pro/ffmpeg/`). The API still speaks *intent* — "make it
+~10 MB", "half the bitrate", "under 200 KB" — instead of opaque quality knobs.
 
 > 中文文档见 [README.zh-CN.md](README.zh-CN.md)。
 
-**🌐 [Try the live web demo in your browser →](https://flutter-compress.ckdgdgdg.workers.dev/)**
+**🌐 [Try the live web demo in your browser →](https://flutter-compress-pro.ckdgdgdg.workers.dev/)**
 
 | | |
 |:---:|:---:|
-| ![Preview 1](https://flutter-compress.ckdgdgdg.workers.dev/img/compress_en_1.jpeg) | ![Preview 2](https://flutter-compress.ckdgdgdg.workers.dev/img/compress_en_2.jpeg) |
+| ![Preview 1](https://flutter-compress-pro.ckdgdgdg.workers.dev/img/compress_en_1.jpeg) | ![Preview 2](https://flutter-compress-pro.ckdgdgdg.workers.dev/img/compress_en_2.jpeg) |
 
-## Why flutter_compress?
+## Why flutter_compress_pro?
 
-- 🪶 **No FFmpeg, no GPL, no bloat** — nothing to bundle beyond the OS encoders your users already have. Your app stays small and license-clean.
-- 🌍 **One API, three platforms** — the same Dart code runs on Android, iOS **and** the browser (via WebCodecs). Most alternatives skip Web entirely.
+- 🪶 **No FFmpeg on mobile / Web / macOS** — those platforms use OS encoders only. **Windows & Linux use FFmpeg** (system `PATH`, or auto-download on first use — see setup).
+- 🌍 **One API, six platforms** — the same Dart code runs on Android, iOS, Web, macOS, Windows and Linux.
 - 🎯 **Hit a target size, precisely** — ask for a size and the plugin derives the bitrate with identical math on every platform.
 - 🎬🖼️ **Video *and* images** — two dedicated, non-overlapping APIs (`compress` vs `compressImage`), each tuned for its medium.
 - 📡 **Production-ready** — live progress, cancellation, sequential batching, and a keep-original-if-larger guard.
@@ -31,11 +32,16 @@ bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs
 
 ## Under the hood
 
-| Platform | Video engine | Image engine |
-|---|---|---|
-| **Android** | Media3 `Transformer` (Google-maintained, HW-accelerated) | `Bitmap` |
-| **iOS** | explicit `AVAssetReader`/`AVAssetWriter` (real bitrate control) | ImageIO |
-| **Web** | WebCodecs + `mp4box.js` / `mp4-muxer` (~0.2 MB, no FFmpeg) | Canvas |
+| Platform | Video engine | Image engine | Uses FFmpeg? | Code |
+|---|---|---|---|---|
+| **Android** | Media3 `Transformer` (HW-accelerated) | `Bitmap` | **No** | `android/` |
+| **iOS** | `AVAssetReader` / `AVAssetWriter` | ImageIO | **No** | shared `darwin/` |
+| **Web** | WebCodecs + `mp4box.js` / `mp4-muxer` | Canvas | **No** | `lib/flutter_compress_pro_web.dart` |
+| **macOS** | AVFoundation (same sources as iOS) | ImageIO | **No** | shared `darwin/` |
+| **Windows** | `ffmpeg` / `ffprobe` (PATH or auto-download) | FFmpeg | **Yes** | shared `lib/src/desktop/` |
+| **Linux** | `ffmpeg` / `ffprobe` (PATH or auto-download) | FFmpeg | **Yes** | shared `lib/src/desktop/` |
+
+iOS and macOS share one Swift tree via Flutter’s [`sharedDarwinSource`](https://docs.flutter.dev/packages-and-plugins/developing-packages) (same pattern as [kinetic_player/darwin](https://github.com/wanwenfeng4798/kinetic_player/tree/main/darwin)). Windows and Linux share one Dart FFmpeg backend.
 
 ## Features
 
@@ -60,63 +66,70 @@ bitrate", "under 200 KB" — instead of making you guess at opaque quality knobs
 
 ### 🎬 Video
 
-| Capability                                 |       Android        |        iOS        |       Web        |
-|--------------------------------------------|:--------------------:|:-----------------:|:----------------:|
-| Compress (target size / bitrate / quality) |          ✅           |         ✅         |        ✅         |
-| HEVC (H.265) with H.264 fallback           |          ✅           |         ✅         |        ✅         |
-| Resolution cap (`maxWidth`/`maxHeight`)    |          ✅           |         ✅         |        ✅         |
-| Frame-rate cap (`frameRate`)               |        ❌ ²          |         ✅         |       ❌ ²        |
-| Audio: remove                              |          ✅           |         ✅         |    ❌ always off   |
-| Audio: bitrate (`audioBitrateKbps`)        |        ❌ ³          |         ✅         |        ❌         |
-| Trim (`trim`)                              |          ✅           |         ✅         |        ❌         |
-| Thumbnail / info / estimate                |          ✅           |         ✅         |        ✅         |
-| Progress / cancel / batch                  |          ✅           |         ✅         |        ✅         |
-| Background compression                     |   ⚠️ opt-in ⁴         | ✅ background task |       n/a        |
-| `saveToDownloads`                          |      MediaStore      |     Documents     | browser download |
+| Capability                                 |       Android        |        iOS        |       Web        |       macOS        |     Windows / Linux      |
+|--------------------------------------------|:--------------------:|:-----------------:|:----------------:|:------------------:|:------------------------:|
+| Compress (target size / bitrate / quality) |          ✅           |         ✅         |        ✅         |          ✅          |            ✅             |
+| HEVC (H.265) with H.264 fallback           |          ✅           |         ✅         |        ✅         |          ✅          |            ✅             |
+| Resolution cap (`maxWidth`/`maxHeight`)    |          ✅           |         ✅         |        ✅         |          ✅          |            ✅             |
+| Frame-rate cap (`frameRate`)               |        ❌ ²          |         ✅         |       ❌ ²        |          ✅          |            ✅             |
+| Audio: remove                              |          ✅           |         ✅         |    ❌ always off   |          ✅          |            ✅             |
+| Audio: bitrate (`audioBitrateKbps`)        |        ❌ ³          |         ✅         |        ❌         |          ✅          |            ✅             |
+| Trim (`trim`)                              |          ✅           |         ✅         |        ❌         |          ✅          |            ✅             |
+| Thumbnail / info / estimate                |          ✅           |         ✅         |        ✅         |          ✅          |            ✅             |
+| Progress / cancel / batch                  |          ✅           |         ✅         |        ✅         |          ✅          |            ✅             |
+| Background compression                     |   ⚠️ opt-in ⁴         | ✅ background task |       n/a        |         n/a         |           n/a            |
+| `saveToDownloads`                          |      MediaStore      |     Documents     | browser download | ~/Downloads folder |     ~/Downloads folder    |
 
 ¹ Web uses HEVC only where the browser supports WebCodecs HEVC encoding
-(e.g. Safari, Chrome with HW HEVC); otherwise it falls back to H.264.
+(e.g. Safari, Chrome with HW HEVC); otherwise it falls back to H.264. Windows /
+Linux use `libx265` when present (auto-download includes it) and fall back to
+`libx264` if HEVC encode fails.
 
-² Only iOS can decimate frames. Media3 has no frame-dropping effect, and the web
-pipeline re-encodes every decoded frame — on both, `frameRate` only influences the
-bitrate/keyframe maths. Read `result.frameRate` for what was actually written.
+² Only iOS, macOS, Windows and Linux decimate frames. Media3 has no frame-dropping
+effect, and the web pipeline re-encodes every decoded frame — on Android/Web,
+`frameRate` only influences the bitrate/keyframe maths. Read `result.frameRate`
+for what was actually written.
 
-³ Media3 1.4.x exposes no audio-encoder settings, so Android encodes AAC at its
-own default. The value still shapes the `targetSizeMB` budget.
+³ Media3 exposes no audio-encoder settings, so Android encodes AAC at its own
+default. The value still shapes the `targetSizeMB` budget.
 
 ⁴ Android needs a foreground service, and its notification must be yours — pass
 `androidNotification` and declare `FOREGROUND_SERVICE`. Without either, the encode
 runs foreground-only; nothing throws. See
 [Background compression on Android](#background-compression-on-android). iOS needs
-nothing (`beginBackgroundTask`: no UI, no permission).
+nothing (`beginBackgroundTask`: no UI, no permission). Desktop has no equivalent.
 
 Anything marked ❌ is **ignored**, not approximated — the result object reports what
 actually happened (`result.frameRate`, `result.hasAudio`, `result.durationMs`).
 
 ### 🖼️ Image
 
-| Capability                              |  Android   |    iOS    |       Web        |
-|-----------------------------------------|:----------:|:---------:|:----------------:|
-| Compress (target size / quality)        |     ✅      |     ✅     |        ✅         |
-| JPEG / PNG / WebP                       |     ✅      |     ✅     |        ✅         |
-| HEIC                                    |    ⚠️ ¹    |     ✅     |        ❌         |
-| Resolution cap (`maxWidth`/`maxHeight`) |     ✅      |     ✅     |        ✅         |
-| Keep EXIF (`keepExif`)                  | ⚠️ JPEG only ² |  ✅   |        ❌         |
-| Compress bytes (`compressImageBytes`)   |     ✅      |     ✅     |        ✅         |
-| `saveToDownloads`                       | MediaStore | Documents | browser download |
+| Capability                              |  Android   |    iOS    |       Web        |  macOS  | Windows / Linux |
+|-----------------------------------------|:----------:|:---------:|:----------------:|:-------:|:---------------:|
+| Compress (target size / quality)        |     ✅      |     ✅     |        ✅         |    ✅    |        ✅        |
+| JPEG / PNG / WebP                       |     ✅      |     ✅     |        ✅         |    ✅    |        ✅        |
+| HEIC                                    |    ⚠️ ¹    |     ✅     |        ❌         |    ✅    |     ❌ → JPEG     |
+| Resolution cap (`maxWidth`/`maxHeight`) |     ✅      |     ✅     |        ✅         |    ✅    |        ✅        |
+| Keep EXIF (`keepExif`)                  | ⚠️ JPEG only ² |  ✅   |        ❌         |    ✅    |  ⚠️ JPEG ³       |
+| Compress bytes (`compressImageBytes`)   |     ✅      |     ✅     |        ✅         |    ✅    |        ✅        |
+| `saveToDownloads`                       | MediaStore | Documents | browser download | ~/Downloads | ~/Downloads |
 
 ¹ Android only writes HEIC when a device HEIC encoder is present; otherwise the
-engine falls back to JPEG (the actual format is reported on the result).
+engine falls back to JPEG (the actual format is reported on the result). Windows /
+Linux always re-encode HEIC requests as JPEG.
 
 ² Android copies 48 EXIF tags (camera, exposure, lens, GPS, timestamps) into JPEG
-output. iOS passes the source's metadata through wholesale. Web's canvas re-encode
-strips metadata entirely — there is no way around it.
+output. iOS / macOS pass the source's metadata through wholesale. Web's canvas
+re-encode strips metadata entirely — there is no way around it.
+
+³ Windows / Linux use FFmpeg `-map_metadata` (keep) or `-map_metadata -1` (strip);
+JPEG is reliable; other formats depend on the muxer.
 
 ## Install
 
 ```yaml
 dependencies:
-  flutter_compress: ^2.0.0
+  flutter_compress_pro: ^0.1.0
 ```
 
 ## Integrate with an AI assistant
@@ -124,13 +137,13 @@ dependencies:
 Point Claude Code, Cursor, Copilot or any LLM at
 **[llm-guide.md](llm-guide.md)** — the guide walks the assistant through the complete integration.
 
-> Read https://raw.githubusercontent.com/chenkaiHere/flutter_compress/master/llm-guide.md
+> Read https://raw.githubusercontent.com/wanwenfeng4798/flutter_compress_pro/master/llm-guide.md
 > and add video compression to this screen.
 
 ## Quick start
 
 ```dart
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 
 final result = await FlutterCompress.instance.compress(
   inputPath,
@@ -269,7 +282,7 @@ try {
 ```
 
 Match on `CompressErrorCode` rather than raw strings — the constants are mirrored
-on all three platforms, and the values are part of the public contract.
+on all six platforms, and the values are part of the public contract.
 
 `CompressException` is the base; `VideoCompressException` / `ImageCompressException`
 narrow it, and `CompressCancelled` is a marker both cancel types implement.
@@ -303,7 +316,7 @@ narrow it, and `CompressCancelled` is a marker both cancel types implement.
   **Call `releaseOutput(result.outputPath)`** once you've downloaded or uploaded a
   result — the browser otherwise holds the whole encoded file in memory for the
   life of the page (`clearCache()` releases every output at once).
-  Try the [live demo](https://flutter-compress.ckdgdgdg.workers.dev/) to see it in action.
+  Try the [live demo](https://flutter-compress-pro.ckdgdgdg.workers.dev/) to see it in action.
 
 ### Android permissions
 
@@ -392,7 +405,7 @@ is ignored there and on web.
 The `<service>` merges into your manifest, is compiled into the APK's binary
 `AndroidManifest.xml`, and is readable through `PackageManager` — so APK
 inspectors such as **LibChecker** list
-`com.compress.all.flutter_compress.CompressionService`, and can fingerprint this
+`com.compress.all.flutter_compress_pro.CompressionService`, and can fingerprint this
 plugin from it. Nothing runs, but the name is there.
 
 To trace *any* merged element back to whichever dependency added it:
@@ -402,13 +415,13 @@ To trace *any* merged element back to whichever dependency added it:
 ```
 
 Each entry names its origin, e.g.
-`service#…CompressionService  ADDED from [:flutter_compress]`.
+`service#…CompressionService  ADDED from [:flutter_compress_pro]`.
 
 If your app never wants background compression, drop the declaration — that
 removes it from the component listing too:
 
 ```xml
-<service android:name="com.compress.all.flutter_compress.CompressionService"
+<service android:name="com.compress.all.flutter_compress_pro.CompressionService"
     tools:node="remove" />
 ```
 
@@ -416,25 +429,79 @@ removes it from the component listing too:
 
 | Dependency | Version | Unshrunk size | Notes |
 |---|---|---|---|
-| `androidx.media3:media3-transformer` + `-effect`, `-common`, `-muxer` | 1.4.1 | ~3.4 MB of AARs including transitive ExoPlayer modules | The video pipeline. R8 removes a large share of this; measure your own release build |
-| `androidx.core:core-ktx` | 1.15.0 | ~0.2 MB | Almost always already present — Flutter pulls `androidx.core` in |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.8.1 | ~20 KB | Also usually already present |
+| `androidx.media3:media3-transformer` + `-effect`, `-common`, `-muxer` | 1.10.1 | ~AARs including transitive ExoPlayer modules | The video pipeline. R8 removes a large share of this; measure your own release build |
+| `androidx.core:core-ktx` | 1.19.0 | ~0.2 MB | Almost always already present — Flutter pulls `androidx.core` in |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.11.0 | ~20 KB | Also usually already present |
 
-iOS and web add **no** third-party native dependencies: iOS uses AVFoundation
-and ImageIO from the SDK, web uses the browser's WebCodecs plus two vendored JS
-bundles (see [THIRD_PARTY_NOTICES](assets/THIRD_PARTY_NOTICES.md) for sizes and
-licences).
+iOS, macOS and web add **no** third-party native dependencies: Apple platforms use
+AVFoundation / ImageIO; web uses WebCodecs plus two vendored JS bundles (see
+[THIRD_PARTY_NOTICES](assets/THIRD_PARTY_NOTICES.md)).
+
+**Windows / Linux** prefer `ffmpeg` / `ffprobe` on `PATH`. If missing, the
+plugin downloads a **GPL** static build from
+[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) on first
+use (~100–200 MB; needs `libx264`/`libx265`) and caches it under
+`~/.cache/flutter_compress_pro/ffmpeg/`. Redistributing that binary means complying
+with FFmpeg’s GPL. Override paths with `FLUTTER_COMPRESS_PRO_FFMPEG` /
+`FLUTTER_COMPRESS_PRO_FFPROBE`, or set `FLUTTER_COMPRESS_PRO_NO_FFMPEG_DOWNLOAD=1` to
+forbid network fetch.
 
 Versions are pinned to the ones actually tested rather than floated. Gradle
 resolves conflicts upward, so an app declaring a newer Media3 still wins — but
 the plugin won't silently adopt one. (Media3 changed the meaning of a
-`DefaultMuxer.Factory` parameter inside its 1.x line once, which truncated every
+muxer `Factory` parameter inside its 1.x line once, which truncated every
 output to 30 seconds while compiling perfectly cleanly.)
+
+## Platform setup
+
+### Windows / Linux (FFmpeg)
+
+Optional — install system FFmpeg to skip the first-run download:
+
+```bash
+# Debian/Ubuntu
+sudo apt install ffmpeg
+
+# Fedora
+sudo dnf install ffmpeg
+
+# Windows: https://ffmpeg.org/download.html and add to PATH
+```
+
+Environment:
+
+```bash
+# Point at your own binaries
+export FLUTTER_COMPRESS_PRO_FFMPEG=/usr/local/bin/ffmpeg
+export FLUTTER_COMPRESS_PRO_FFPROBE=/usr/local/bin/ffprobe
+
+# Never download (fail if not on PATH)
+export FLUTTER_COMPRESS_PRO_NO_FFMPEG_DOWNLOAD=1
+```
+
+### macOS / iOS
+
+No extra install — shared `darwin/` AVFoundation / ImageIO sources.
+
+**macOS App Sandbox:** if the host app uses a file picker (e.g. `file_picker`),
+add user-selected file access to both Debug and Release entitlements, or you get
+`ENTITLEMENT_NOT_FOUND`:
+
+```xml
+<key>com.apple.security.files.user-selected.read-write</key>
+<true/>
+<!-- optional: saveToDownloads() -->
+<key>com.apple.security.files.downloads.read-write</key>
+<true/>
+```
 
 ## Known limitations
 
 - **Web (v1):** audio is dropped and `trim` is not yet applied.
+- **Windows / Linux:** codec features follow the FFmpeg build in use (auto-download
+  is GPL with libx264/libx265). HEIC image encode falls back to JPEG.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Auto-downloaded FFmpeg on Windows/Linux is **GPL**
+(third-party); see [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds).

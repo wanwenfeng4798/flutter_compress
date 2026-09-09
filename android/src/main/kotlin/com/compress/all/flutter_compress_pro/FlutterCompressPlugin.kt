@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 import android.content.Context
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -40,9 +40,9 @@ class FlutterCompressPlugin :
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
-        methodChannel = MethodChannel(binding.binaryMessenger, "flutter_compress/methods")
+        methodChannel = MethodChannel(binding.binaryMessenger, "flutter_compress_pro/methods")
         methodChannel.setMethodCallHandler(this)
-        eventChannel = EventChannel(binding.binaryMessenger, "flutter_compress/progress")
+        eventChannel = EventChannel(binding.binaryMessenger, "flutter_compress_pro/progress")
         eventChannel.setStreamHandler(this)
         engine = CompressionEngine(context) { eventSink?.success(it) }
         imageEngine = ImageEngine(context)

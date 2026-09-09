@@ -1,1 +1,1 @@
-rootProject.name = "flutter_compress"
+rootProject.name = "flutter_compress_pro"

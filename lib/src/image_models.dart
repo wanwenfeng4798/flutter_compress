@@ -33,26 +33,30 @@ class ImageCompressConfig {
     this.lossless = false,
     this.keepOriginalIfLarger = true,
     this.minSavingsPercent = 0,
-  })  : assert(quality >= 1 && quality <= 100, 'quality must be 1–100'),
-        assert(targetSizeKB == null || targetSizeKB > 0,
-            'targetSizeKB must be > 0'),
-        assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
-        assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
-        assert(minSavingsPercent >= 0 && minSavingsPercent < 100,
-            'minSavingsPercent must be 0–99');
+  }) : assert(quality >= 1 && quality <= 100, 'quality must be 1–100'),
+       assert(
+         targetSizeKB == null || targetSizeKB > 0,
+         'targetSizeKB must be > 0',
+       ),
+       assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
+       assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
+       assert(
+         minSavingsPercent >= 0 && minSavingsPercent < 100,
+         'minSavingsPercent must be 0–99',
+       );
 
   /// Sized for upload as an avatar or thumbnail: 512px cap, JPEG, modest
   /// quality. Format is forced because a 4 MB PNG avatar is the common mistake.
   const ImageCompressConfig.forAvatar({
     this.maxWidth = 512,
     this.maxHeight = 512,
-  })  : format = ImageFormat.jpeg,
-        quality = 80,
-        targetSizeKB = null,
-        keepExif = false,
-        lossless = false,
-        keepOriginalIfLarger = true,
-        minSavingsPercent = 0;
+  }) : format = ImageFormat.jpeg,
+       quality = 80,
+       targetSizeKB = null,
+       keepExif = false,
+       lossless = false,
+       keepOriginalIfLarger = true,
+       minSavingsPercent = 0;
 
   /// A photo destined for a social post: 2048px cap, source format kept, EXIF
   /// dropped so location data doesn't leak with the upload.
@@ -60,12 +64,12 @@ class ImageCompressConfig {
     this.maxWidth = 2048,
     this.maxHeight = 2048,
     this.targetSizeKB = 500,
-  })  : format = null,
-        quality = 85,
-        keepExif = false,
-        lossless = false,
-        keepOriginalIfLarger = true,
-        minSavingsPercent = 0;
+  }) : format = null,
+       quality = 85,
+       keepExif = false,
+       lossless = false,
+       keepOriginalIfLarger = true,
+       minSavingsPercent = 0;
 
   /// Output format. When `null` (the default), the **source's format is kept**
   /// (a PNG stays PNG, a JPEG stays JPEG); set it only to convert to a specific
@@ -116,16 +120,16 @@ class ImageCompressConfig {
   final int minSavingsPercent;
 
   Map<String, dynamic> toMap() => {
-        'format': format?.name,
-        'quality': quality,
-        'targetSizeKB': targetSizeKB,
-        'maxWidth': maxWidth,
-        'maxHeight': maxHeight,
-        'keepExif': keepExif,
-        'lossless': lossless,
-        'keepOriginalIfLarger': keepOriginalIfLarger,
-        'minSavingsPercent': minSavingsPercent,
-      };
+    'format': format?.name,
+    'quality': quality,
+    'targetSizeKB': targetSizeKB,
+    'maxWidth': maxWidth,
+    'maxHeight': maxHeight,
+    'keepExif': keepExif,
+    'lossless': lossless,
+    'keepOriginalIfLarger': keepOriginalIfLarger,
+    'minSavingsPercent': minSavingsPercent,
+  };
 }
 
 /// Metadata about a source image. (Named `ImageMeta` to avoid clashing with
@@ -146,12 +150,12 @@ class ImageMeta {
   final String? format;
 
   factory ImageMeta.fromMap(Map<dynamic, dynamic> m) => ImageMeta(
-        path: m['path'] as String,
-        width: (m['width'] as num).toInt(),
-        height: (m['height'] as num).toInt(),
-        sizeBytes: (m['sizeBytes'] as num).toInt(),
-        format: m['format'] as String?,
-      );
+    path: m['path'] as String,
+    width: (m['width'] as num).toInt(),
+    height: (m['height'] as num).toInt(),
+    sizeBytes: (m['sizeBytes'] as num).toInt(),
+    format: m['format'] as String?,
+  );
 }
 
 /// Result of a completed image compression.
@@ -236,11 +240,11 @@ class ImageBytesResult {
   double get savedPercent => (1 - compressionRatio) * 100;
 
   factory ImageBytesResult.fromMap(Map<dynamic, dynamic> m) => ImageBytesResult(
-        bytes: m['bytes'] as Uint8List,
-        originalSizeBytes: (m['originalSizeBytes'] as num).toInt(),
-        width: (m['width'] as num).toInt(),
-        height: (m['height'] as num).toInt(),
-        format: m['format'] as String,
-        skipped: m['skipped'] == true,
-      );
+    bytes: m['bytes'] as Uint8List,
+    originalSizeBytes: (m['originalSizeBytes'] as num).toInt(),
+    width: (m['width'] as num).toInt(),
+    height: (m['height'] as num).toInt(),
+    format: m['format'] as String,
+    skipped: m['skipped'] == true,
+  );
 }

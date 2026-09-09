@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 /** Parsed mirror of the Dart [VideoCompressConfig]. */
 data class CompressionConfig(

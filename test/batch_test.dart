@@ -2,10 +2,10 @@
 //
 // The platform interface is abstract, so the whole facade can be exercised
 // without a device: ordering, cancellation, progress and per-item error
-// tolerance are all pure Dart decisions made in flutter_compress.dart.
+// tolerance are all pure Dart decisions made in flutter_compress_pro.dart.
 
-import 'package:flutter_compress/flutter_compress.dart';
-import 'package:flutter_compress/flutter_compress_platform_interface.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records calls and fails whichever paths the test asks it to.
@@ -82,8 +82,11 @@ void main() {
     test('processes every path in order', () async {
       final fake = _FakePlatform();
       _use(fake);
-      final out = await api.compressAll(
-          ['a.mp4', 'b.mp4', 'c.mp4'], const VideoCompressConfig());
+      final out = await api.compressAll([
+        'a.mp4',
+        'b.mp4',
+        'c.mp4',
+      ], const VideoCompressConfig());
       expect(fake.videoCalls, ['a.mp4', 'b.mp4', 'c.mp4']);
       expect(out, hasLength(3));
     });
@@ -92,8 +95,11 @@ void main() {
       final fake = _FakePlatform(failOn: {'b.mp4'});
       _use(fake);
       await expectLater(
-        api.compressAll(
-            ['a.mp4', 'b.mp4', 'c.mp4'], const VideoCompressConfig()),
+        api.compressAll([
+          'a.mp4',
+          'b.mp4',
+          'c.mp4',
+        ], const VideoCompressConfig()),
         throwsA(isA<VideoCompressException>()),
       );
       // 'c' never ran — this is the data-loss behaviour continueOnError fixes.
@@ -120,8 +126,12 @@ void main() {
       final token = CancellationToken();
       await token.cancel();
       await expectLater(
-        api.compressAll(['a.mp4'], const VideoCompressConfig(),
-            continueOnError: true, cancellationToken: token),
+        api.compressAll(
+          ['a.mp4'],
+          const VideoCompressConfig(),
+          continueOnError: true,
+          cancellationToken: token,
+        ),
         throwsA(isA<CompressCancelled>()),
       );
     });
@@ -132,8 +142,11 @@ void main() {
       final token = CancellationToken();
       await token.cancel();
       await expectLater(
-        api.compressAll(['a.mp4', 'b.mp4'], const VideoCompressConfig(),
-            cancellationToken: token),
+        api.compressAll(
+          ['a.mp4', 'b.mp4'],
+          const VideoCompressConfig(),
+          cancellationToken: token,
+        ),
         throwsA(isA<VideoCompressCancelledException>()),
       );
       expect(fake.videoCalls, isEmpty);
@@ -181,8 +194,11 @@ void main() {
       final token = CancellationToken();
       await token.cancel();
       await expectLater(
-        api.compressImages(['a.jpg'], const ImageCompressConfig(),
-            cancellationToken: token),
+        api.compressImages(
+          ['a.jpg'],
+          const ImageCompressConfig(),
+          cancellationToken: token,
+        ),
         throwsA(isA<ImageCompressCancelledException>()),
       );
       expect(fake.imageCalls, isEmpty);

@@ -1,15 +1,15 @@
-# SwiftLint config for the iOS plugin sources (CLAUDE.md §7.3).
+# SwiftLint config for the shared Darwin (iOS + macOS) plugin sources.
 #
 # Runs with --strict in CI, so every warning is a build failure. Keep the rule
 # set small and justified: rules that fire on style opinions get disabled rather
 # than worked around.
 
 included:
-  - ios/flutter_compress/Sources
+  - darwin/flutter_compress_pro/Sources
 
 excluded:
   - example
-  - ios/flutter_compress/.build
+  - darwin/flutter_compress_pro/.build
 
 # §7.3 MUST NOT: force unwrap / force cast / force try. These are the reason
 # this config exists — they turn a recoverable channel error into a host crash.

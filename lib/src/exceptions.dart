@@ -36,7 +36,7 @@ class VideoCompressException extends CompressException {
 class VideoCompressCancelledException extends VideoCompressException
     implements CompressCancelled {
   VideoCompressCancelledException([String? message])
-      : super('cancelled', message ?? 'Compression was cancelled');
+    : super('cancelled', message ?? 'Compression was cancelled');
 }
 
 /// An image operation failed.
@@ -48,5 +48,5 @@ class ImageCompressException extends CompressException {
 class ImageCompressCancelledException extends ImageCompressException
     implements CompressCancelled {
   ImageCompressCancelledException([String? message])
-      : super('cancelled', message ?? 'Compression was cancelled');
+    : super('cancelled', message ?? 'Compression was cancelled');
 }

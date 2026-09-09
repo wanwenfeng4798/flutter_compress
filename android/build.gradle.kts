@@ -1,13 +1,12 @@
-group = "com.compress.all.flutter_compress"
+group = "com.compress.all.flutter_compress_pro"
 version = "1.0-SNAPSHOT"
 
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
-    namespace = "com.compress.all.flutter_compress"
+    namespace = "com.compress.all.flutter_compress_pro"
 
     compileSdk = 36
 
@@ -64,7 +63,7 @@ kotlin {
 // duration inside the 1.x line, which silently truncated every output to 30s.
 // That class of change compiles clean and passes unit tests, so builds must stay
 // reproducible and upgrades must be deliberate (CLAUDE.md §12.3).
-private val media3 = "1.4.1"
+private val media3 = "1.10.1"
 
 dependencies {
     // Google's official, hardware-accelerated transcoding pipeline. Media3
@@ -72,14 +71,14 @@ dependencies {
     implementation("androidx.media3:media3-transformer:$media3")
     implementation("androidx.media3:media3-effect:$media3")
     implementation("androidx.media3:media3-common:$media3")
-    // Provides androidx.media3.muxer.* referenced by DefaultMuxer.
+    // Provides androidx.media3.muxer.* referenced by DefaultMuxer / InAppMp4Muxer.
     implementation("androidx.media3:media3-muxer:$media3")
 
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.mockito:mockito-core:5.0.0")
+    testImplementation("org.mockito:mockito-core:5.14.2")
     // testOptions uses useJUnitPlatform(), which needs a JUnit 5 engine present.
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.4")
 }

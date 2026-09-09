@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -159,7 +159,7 @@ class CompressionService : Service() {
 
     companion object {
         private const val TAG = "FlutterCompress"
-        private const val CHANNEL_ID = "flutter_compress_channel"
+        private const val CHANNEL_ID = "flutter_compress_pro_channel"
         private const val NOTIFICATION_ID = 0x7C01
         private const val EXTRA_ICON = "smallIcon"
         private const val EXTRA_TITLE = "title"

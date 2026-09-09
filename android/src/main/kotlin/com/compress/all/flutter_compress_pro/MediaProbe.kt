@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 import android.media.MediaMetadataRetriever
 import java.io.File

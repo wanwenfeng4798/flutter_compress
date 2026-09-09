@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_theme.dart';
@@ -75,7 +75,11 @@ class _DemoAppState extends State<DemoApp> {
       theme: buildAppTheme(Brightness.light),
       darkTheme: buildAppTheme(Brightness.dark),
       locale: _locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // App strings + material_ui Material/Cupertino/Widgets delegates.
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
+      ],
       supportedLocales: AppLocalizations.supportedLocales,
       // First launch (no saved choice): match the system language, else English.
       localeResolutionCallback: (device, supported) {

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -35,8 +35,9 @@ void main() {
 
     test('container can be forced to mp4', () {
       expect(
-        const VideoCompressConfig(container: VideoContainer.mp4)
-            .toMap()['container'],
+        const VideoCompressConfig(
+          container: VideoContainer.mp4,
+        ).toMap()['container'],
         'mp4',
       );
     });
@@ -97,8 +98,10 @@ void main() {
     });
 
     test('carries the lossless flag', () {
-      const config =
-          ImageCompressConfig(format: ImageFormat.png, lossless: true);
+      const config = ImageCompressConfig(
+        format: ImageFormat.png,
+        lossless: true,
+      );
       final map = config.toMap();
       expect(map['lossless'], true);
       expect(map['format'], 'png');
@@ -108,8 +111,9 @@ void main() {
       expect(const ImageCompressConfig().keepOriginalIfLarger, true);
       expect(const ImageCompressConfig().toMap()['keepOriginalIfLarger'], true);
       expect(
-        const ImageCompressConfig(keepOriginalIfLarger: false)
-            .toMap()['keepOriginalIfLarger'],
+        const ImageCompressConfig(
+          keepOriginalIfLarger: false,
+        ).toMap()['keepOriginalIfLarger'],
         false,
       );
     });
@@ -138,10 +142,14 @@ void main() {
     });
 
     test('rejects out-of-range quality', () {
-      expect(() => ImageCompressConfig(quality: 0),
-          throwsA(isA<AssertionError>()));
-      expect(() => ImageCompressConfig(quality: 101),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => ImageCompressConfig(quality: 0),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => ImageCompressConfig(quality: 101),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
@@ -150,7 +158,9 @@ void main() {
       // The whole opt-in contract: absent config => the plugin starts nothing.
       expect(const VideoCompressConfig().androidNotification, isNull);
       expect(
-          const VideoCompressConfig().toMap()['androidNotification'], isNull);
+        const VideoCompressConfig().toMap()['androidNotification'],
+        isNull,
+      );
     });
 
     test('serializes what the host supplied, with no plugin defaults', () {
@@ -169,17 +179,25 @@ void main() {
     });
 
     test('rejects empty icon or title at construction', () {
-      expect(() => AndroidNotification(smallIcon: '', title: 'x'),
-          throwsA(isA<AssertionError>()));
-      expect(() => AndroidNotification(smallIcon: 'ic_x', title: ''),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => AndroidNotification(smallIcon: '', title: 'x'),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => AndroidNotification(smallIcon: 'ic_x', title: ''),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
     test('presets do not opt into a notification on the caller behalf', () {
-      expect(const VideoCompressConfig.forSocialMedia().androidNotification,
-          isNull);
-      expect(const VideoCompressConfig.maxCompression().androidNotification,
-          isNull);
+      expect(
+        const VideoCompressConfig.forSocialMedia().androidNotification,
+        isNull,
+      );
+      expect(
+        const VideoCompressConfig.maxCompression().androidNotification,
+        isNull,
+      );
     });
   });
 
@@ -188,18 +206,23 @@ void main() {
       expect(const VideoCompressConfig().toMap()['minSavingsPercent'], 0);
       expect(const ImageCompressConfig().toMap()['minSavingsPercent'], 0);
       expect(
-        const ImageCompressConfig(minSavingsPercent: 5)
-            .toMap()['minSavingsPercent'],
+        const ImageCompressConfig(
+          minSavingsPercent: 5,
+        ).toMap()['minSavingsPercent'],
         5,
       );
     });
 
     test('rejects a threshold that could never be met', () {
       // 100 would mean "skip unless the output is zero bytes".
-      expect(() => VideoCompressConfig(minSavingsPercent: 100),
-          throwsA(isA<AssertionError>()));
-      expect(() => ImageCompressConfig(minSavingsPercent: -1),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => VideoCompressConfig(minSavingsPercent: 100),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => ImageCompressConfig(minSavingsPercent: -1),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
@@ -308,8 +331,10 @@ void main() {
     });
 
     test('a plain failure is not mistaken for a cancel', () {
-      expect(ImageCompressException('image_compress_failed', 'boom'),
-          isNot(isA<CompressCancelled>()));
+      expect(
+        ImageCompressException('image_compress_failed', 'boom'),
+        isNot(isA<CompressCancelled>()),
+      );
     });
   });
 
@@ -327,19 +352,29 @@ void main() {
 
   group('config assertions', () {
     test('video rejects non-positive sizes', () {
-      expect(() => VideoCompressConfig(targetSizeMB: 0),
-          throwsA(isA<AssertionError>()));
-      expect(() => VideoCompressConfig(maxWidth: 0),
-          throwsA(isA<AssertionError>()));
-      expect(() => VideoCompressConfig(frameRate: 0),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => VideoCompressConfig(targetSizeMB: 0),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => VideoCompressConfig(maxWidth: 0),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => VideoCompressConfig(frameRate: 0),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
     test('image rejects non-positive caps', () {
-      expect(() => ImageCompressConfig(maxWidth: 0),
-          throwsA(isA<AssertionError>()));
-      expect(() => ImageCompressConfig(targetSizeKB: 0),
-          throwsA(isA<AssertionError>()));
+      expect(
+        () => ImageCompressConfig(maxWidth: 0),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => ImageCompressConfig(targetSizeKB: 0),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 }

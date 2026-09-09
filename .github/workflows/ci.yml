@@ -13,7 +13,7 @@ concurrency:
 
 env:
   # Keep in step with pubspec.yaml's `flutter:` constraint.
-  FLUTTER_VERSION: 3.44.5
+  FLUTTER_VERSION: 3.47.2
 
 jobs:
   # Fast feedback: format, analyze, test. Ordered cheapest-first.
@@ -86,7 +86,39 @@ jobs:
 
       - name: Unit tests (JVM)
         working-directory: example/android
-        run: ./gradlew :flutter_compress:testDebugUnitTest
+        run: ./gradlew :flutter_compress_pro:testDebugUnitTest
+
+  linux:
+    name: linux build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Install FFmpeg + Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg clang cmake ninja-build pkg-config libgtk-3-dev
+      - name: Build example (linux)
+        working-directory: example
+        run: flutter build linux --debug
+
+  macos-desktop:
+    name: macos build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Build example (macos)
+        working-directory: example
+        run: flutter build macos --debug
 
   ios:
     name: ios build

@@ -1,4 +1,4 @@
-package com.compress.all.flutter_compress
+package com.compress.all.flutter_compress_pro
 
 /**
  * Turns a [CompressionConfig] intent (target size / bitrate / quality) into

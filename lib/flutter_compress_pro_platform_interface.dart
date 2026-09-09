@@ -2,11 +2,11 @@ import 'dart:typed_data';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'flutter_compress_method_channel.dart';
+import 'flutter_compress_pro_method_channel.dart';
 import 'src/image_models.dart';
 import 'src/models.dart';
 
-/// The interface that platform implementations of flutter_compress implement.
+/// The interface that platform implementations of flutter_compress_pro implement.
 ///
 /// Kept federated-style so an alternate implementation (e.g. a future macOS or
 /// desktop backend) can be swapped in without touching the app-facing API.
@@ -34,8 +34,7 @@ abstract class FlutterCompressPlatform extends PlatformInterface {
   Future<CompressionEstimate> estimate(
     String path,
     VideoCompressConfig config,
-  ) =>
-      throw UnimplementedError('estimate() has not been implemented.');
+  ) => throw UnimplementedError('estimate() has not been implemented.');
 
   /// Compress [path] using [config]. [id] identifies the job (for progress
   /// correlation and cancellation). When [outputPath] is non-null the encoded
@@ -46,8 +45,7 @@ abstract class FlutterCompressPlatform extends PlatformInterface {
     VideoCompressConfig config,
     String? outputDir,
     String? outputName,
-  ) =>
-      throw UnimplementedError('compress() has not been implemented.');
+  ) => throw UnimplementedError('compress() has not been implemented.');
 
   Future<void> cancel(String? id) =>
       throw UnimplementedError('cancel() has not been implemented.');
@@ -60,8 +58,7 @@ abstract class FlutterCompressPlatform extends PlatformInterface {
     required int positionMs,
     required int quality,
     int? maxWidth,
-  }) =>
-      throw UnimplementedError('getThumbnail() has not been implemented.');
+  }) => throw UnimplementedError('getThumbnail() has not been implemented.');
 
   /// Whether this platform can compress video at all. Always true on native;
   /// on web it reports WebCodecs + demux/mux availability.
@@ -87,15 +84,14 @@ abstract class FlutterCompressPlatform extends PlatformInterface {
     ImageCompressConfig config,
     String? outputDir,
     String? outputName,
-  ) =>
-      throw UnimplementedError('compressImage() has not been implemented.');
+  ) => throw UnimplementedError('compressImage() has not been implemented.');
 
   /// Compress bytes in memory. Images only — a video would mean copying tens of
   /// megabytes across the platform channel in one message.
   Future<ImageBytesResult> compressImageBytes(
     Uint8List source,
     ImageCompressConfig config,
-  ) =>
-      throw UnimplementedError(
-          'compressImageBytes() has not been implemented.');
+  ) => throw UnimplementedError(
+    'compressImageBytes() has not been implemented.',
+  );
 }

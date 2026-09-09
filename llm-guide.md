@@ -1,18 +1,19 @@
-# flutter_compress — LLM Integration Guide
+# flutter_compress_pro — LLM Integration Guide
 
 **Purpose.** A self-contained reference for AI coding assistants integrating
-`flutter_compress`. Everything needed to write correct code is in this file — no
+`flutter_compress_pro`. Everything needed to write correct code is in this file — no
 other page needs to be fetched.
 
-**Package:** `flutter_compress` · **This guide targets:** 2.0.0
-**Source of truth:** <https://pub.dev/packages/flutter_compress>
+**Package:** `flutter_compress_pro` · **This guide targets:** 0.1.0
+**Source of truth:** <https://pub.dev/packages/flutter_compress_pro>
 
 Before integrating, check the latest version on pub.dev and use it in
-`pubspec.yaml`. If the installed version differs from 2.0.0, prefer the
+`pubspec.yaml`. If the installed version differs from 0.1.0, prefer the
 package's own dartdoc over this file.
 
-**What it does.** Compresses **video** and **images** on Android, iOS and Web
-using each platform's native encoder. No FFmpeg, no GPL, nothing to bundle.
+**What it does.** Compresses **video** and **images** on Android, iOS, Web,
+macOS, Windows and Linux. Android / iOS / Web / macOS use OS encoders (**no
+FFmpeg**). Windows / Linux call system `ffmpeg` / `ffprobe` (not bundled).
 
 ---
 
@@ -44,13 +45,13 @@ written.
 
 ```yaml
 dependencies:
-  flutter_compress: ^2.0.0
+  flutter_compress_pro: ^0.1.0
 ```
 
 No platform registration, no init call. The plugin registers itself.
 
 ```dart
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 
 final api = FlutterCompress.instance;
 ```
@@ -69,7 +70,7 @@ behalf.
 It does declare one `<service>` (a declaration, not a permission), which stays
 inert unless the app opts in below. It is still visible in the APK's component
 list — APK inspectors like LibChecker will show
-`com.compress.all.flutter_compress.CompressionService`. An app that never wants
+`com.compress.all.flutter_compress_pro.CompressionService`. An app that never wants
 background compression can remove it with `tools:node="remove"`; see the README.
 
 One permission exception exists, for one call only:
@@ -180,7 +181,7 @@ print('${result.outputPath} — saved ${result.savedPercent.toStringAsFixed(1)}%
 | `targetSizeMB` | `int?` | `null` | Desired size; the plugin derives the bitrate |
 | `codec` | `VideoCodec` | `h265` | `h265` or `h264`; falls back automatically |
 | `maxWidth` / `maxHeight` | `int?` | `null` | Cap dimensions; aspect kept, **only scales down** |
-| `frameRate` | `double?` | `null` | Cap fps — **iOS only**, see §7 |
+| `frameRate` | `double?` | `null` | Cap fps — **iOS / macOS / Windows / Linux**, see §7 |
 | `removeAudio` | `bool` | `false` | Drop the audio track |
 | `audioBitrateKbps` | `int?` | `null` | Re-encode audio — **iOS only**, see §7 |
 | `trim` | `TrimRange?` | `null` | `TrimRange(startMs:, endMs:)` — **not on Web** |
@@ -470,50 +471,52 @@ have the requested property.
 
 ### Video
 
-| Capability | Android | iOS | Web |
-|---|:---:|:---:|:---:|
-| Target size / bitrate / quality | ✅ | ✅ | ✅ |
-| H.265 with H.264 fallback | ✅ | ✅ | ✅ ¹ |
-| `maxWidth` / `maxHeight` | ✅ | ✅ | ✅ |
-| `frameRate` | ❌ ² | ✅ | ❌ ² |
-| `removeAudio` | ✅ | ✅ | ❌ audio always dropped |
-| `audioBitrateKbps` | ❌ ³ | ✅ | ❌ |
-| `trim` | ✅ | ✅ | ❌ |
-| Thumbnail / info / estimate | ✅ | ✅ | ✅ |
-| Progress / cancel / batch | ✅ | ✅ | ✅ |
-| Background compression | ⚠️ opt-in ⁵ | ✅ background task | n/a |
+| Capability | Android | iOS | Web | macOS | Windows / Linux |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Target size / bitrate / quality | ✅ | ✅ | ✅ | ✅ | ✅ |
+| H.265 with H.264 fallback | ✅ | ✅ | ✅ ¹ | ✅ | ✅ |
+| `maxWidth` / `maxHeight` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `frameRate` | ❌ ² | ✅ | ❌ ² | ✅ | ✅ |
+| `removeAudio` | ✅ | ✅ | ❌ audio always dropped | ✅ | ✅ |
+| `audioBitrateKbps` | ❌ ³ | ✅ | ❌ | ✅ | ✅ |
+| `trim` | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Thumbnail / info / estimate | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Progress / cancel / batch | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Background compression | ⚠️ opt-in ⁵ | ✅ background task | n/a | n/a | n/a |
 
 ¹ Web uses HEVC only where the browser's WebCodecs supports encoding it,
-otherwise H.264. Read `result.codec`.
-² Only iOS decimates frames. Media3 has no frame-dropping effect and the web
-pipeline re-encodes every decoded frame; on both, `frameRate` only feeds the
-bitrate maths. Read `result.frameRate`.
-³ Media3 1.4.x exposes no audio-encoder settings; Android encodes AAC at its own
+otherwise H.264. Windows / Linux use `libx265` when available and fall back to
+`libx264`. Read `result.codec`.
+² Only iOS, macOS, Windows and Linux decimate frames. Media3 has no frame-dropping
+effect and the web pipeline re-encodes every decoded frame; on Android/Web,
+`frameRate` only feeds the bitrate maths. Read `result.frameRate`.
+³ Media3 exposes no audio-encoder settings; Android encodes AAC at its own
 default. The value still shapes the `targetSizeMB` budget.
 
 ### Image
 
-| Capability | Android | iOS | Web |
-|---|:---:|:---:|:---:|
-| Target size / quality | ✅ | ✅ | ✅ |
-| JPEG / PNG / WebP | ✅ | ✅ | ✅ |
-| HEIC | ⚠️ device encoder only, else JPEG | ✅ | ❌ |
-| `maxWidth` / `maxHeight` | ✅ | ✅ | ✅ |
-| `keepExif` | ⚠️ JPEG only ⁴ | ✅ | ❌ |
-| `compressImageBytes` | ✅ | ✅ | ✅ |
+| Capability | Android | iOS | Web | macOS | Windows / Linux |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Target size / quality | ✅ | ✅ | ✅ | ✅ | ✅ |
+| JPEG / PNG / WebP | ✅ | ✅ | ✅ | ✅ | ✅ |
+| HEIC | ⚠️ device encoder only, else JPEG | ✅ | ❌ | ✅ | ❌ → JPEG |
+| `maxWidth` / `maxHeight` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `keepExif` | ⚠️ JPEG only ⁴ | ✅ | ❌ | ✅ | ⚠️ JPEG (FFmpeg `-map_metadata`) |
+| `compressImageBytes` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ⁵ Android requires `androidNotification` **and** the `FOREGROUND_SERVICE`
 permission (see §2). Without either, the encode is foreground-only — that is the
 design, not an error condition.
 
-⁴ Android copies 48 EXIF tags into JPEG output. iOS passes the source's metadata
-through wholesale. Web's canvas re-encode strips metadata entirely — no workaround
-exists, so do not offer a "keep EXIF" switch on web.
+⁴ Android copies 48 EXIF tags into JPEG output. iOS / macOS pass the source's
+metadata through wholesale. Web's canvas re-encode strips metadata entirely — no
+workaround exists, so do not offer a "keep EXIF" switch on web. Windows / Linux
+use FFmpeg `-map_metadata` (reliable for JPEG).
 
 **Consequence for generated code:** never present an ignored option to the user
-as if it worked. If a UI exposes a frame-rate slider, gate it on
-`defaultTargetPlatform == TargetPlatform.iOS`, or surface `result.frameRate`
-afterwards.
+as if it worked. If a UI exposes a frame-rate slider, gate it on platforms that
+actually decimate (`iOS` / `macOS` / `windows` / `linux`), or surface
+`result.frameRate` afterwards.
 
 ---
 
@@ -562,7 +565,7 @@ Do not call `releaseOutput` on a path you still display in an `<img>`/`Image.net
 ## 9. Complete worked example
 
 ```dart
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 
 Future<String?> shrinkVideo(String inputPath) async {
   final api = FlutterCompress.instance;
@@ -608,7 +611,7 @@ Future<String?> shrinkVideo(String inputPath) async {
 
 ## 10. Integration checklist
 
-- [ ] `flutter_compress` in `pubspec.yaml` at the current pub.dev version
+- [ ] `flutter_compress_pro` in `pubspec.yaml` at the current pub.dev version
 - [ ] Video uses `compress()`; images use `compressImage()` — never crossed
 - [ ] Exactly **one** size control set per config
 - [ ] `isSupported()` gates video on Web
@@ -633,7 +636,7 @@ Future<String?> shrinkVideo(String inputPath) async {
 |---|---|---|
 | Passing an image to `compress()` | Video engine can't open it; runtime failure | Use `compressImage()` |
 | Setting `targetSizeMB` *and* `videoBitrateKbps` | Lower-priority fields silently ignored; intent unclear | Set one |
-| Assuming `frameRate` applies everywhere | Android/Web ignore it; output fps is unchanged | Gate on iOS or read `result.frameRate` |
+| Assuming `frameRate` applies everywhere | Android/Web ignore it; output fps is unchanged | Gate on iOS/macOS/Windows/Linux or read `result.frameRate` |
 | Assuming `config.codec` is what shipped | H.265 falls back to H.264 on unsupported hardware | Read `result.codec` |
 | Treating `outputPath` as always a new file | With `skipped: true` it is the **source** — deleting it destroys the user's file | Check `result.skipped` first |
 | Never calling `releaseOutput` on Web | Every output stays in memory for the page's life | Release after use |
@@ -641,7 +644,7 @@ Future<String?> shrinkVideo(String inputPath) async {
 | Catching `PlatformException` | Never thrown by this API; the catch is dead code | Catch `CompressException` |
 | Adding camera/photo `Info.plist` keys | Plugin needs none; unjustified keys invite App Store questions | Only the file-picker package's keys |
 | Adding Android permissions "because the plugin needs them" | It declares none and needs none; every one you add is yours to justify at review | Add only for your own background service or legacy `saveToDownloads` |
-| Looking for `keepAliveInBackground` | Replaced in 2.0.0 by `androidNotification` | Pass an `AndroidNotification`, or omit it for no service |
+| Looking for `keepAliveInBackground` | Not in this API — use `androidNotification` | Pass an `AndroidNotification`, or omit it for no service |
 | Inventing a notification title or icon | A wrong icon silently disables the service; invented copy ships in the user's app | Ask what it should say, or omit `androidNotification` |
 | Treating a foreground-only encode as a failure | That is simply what Android does without the app's own service — nothing throws | Nothing to handle |
 | `outputName: 'photo.png'` to get a PNG | The name never sets the format — the extension is stripped and the real format wins | `format: ImageFormat.png` |
@@ -692,4 +695,4 @@ Future<String?> shrinkVideo(String inputPath) async {
 
 If asked for something this guide does not cover, say so rather than inventing
 an API. The full dartdoc ships with the package, and the source is at
-<https://github.com/chenkaiHere/flutter_compress>.
+<https://github.com/wanwenfeng4798/flutter_compress_pro>.

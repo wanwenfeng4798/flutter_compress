@@ -21,7 +21,7 @@
     -->
 
     <application
-        android:label="flutter_compress_example"
+        android:label="flutter_compress_pro_example"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

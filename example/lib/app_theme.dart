@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The design-system palette (dark + light) derived from the provided mockup:
 /// deep near-black purple base, a #7C5CFF → #C04DFF accent gradient, glassy

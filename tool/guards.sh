@@ -16,6 +16,8 @@ check() { # check <name> <explanation-on-failure>
   fi
 }
 
+DARWIN_SRC=darwin/flutter_compress_pro/Sources
+
 echo "== §7.1 business logic must not depend on Flutter =="
 # Deliberately an allow-list, not a `core/` path match: a directory-name grep
 # passes vacuously when the directory doesn't exist, which is worse than no check.
@@ -23,16 +25,16 @@ offenders=$(grep -rlE '^import io\.flutter' android/src/main/kotlin/ 2>/dev/null
   | grep -v 'FlutterCompressPlugin.kt' || true)
 check "Kotlin engines are Flutter-free" "${offenders:+leaked into: $offenders}"
 
-offenders=$(grep -rlE '^import Flutter' ios/flutter_compress/Sources/ 2>/dev/null \
+offenders=$(grep -rlE '^import Flutter|^import FlutterMacOS' "$DARWIN_SRC/" 2>/dev/null \
   | grep -v 'FlutterCompressPlugin.swift' || true)
-check "Swift engines are Flutter-free" "${offenders:+leaked into: $offenders}"
+check "Darwin Swift engines are Flutter-free" "${offenders:+leaked into: $offenders}"
 
 echo "== §7.2 / §7.3 no force-unwrapping =="
 offenders=$(grep -rnE '[a-zA-Z0-9_)\]]!!' android/src/main/kotlin/ 2>/dev/null || true)
 check "no Kotlin '!!'" "${offenders:+$offenders}"
 
-offenders=$(grep -rnE ' as! | try! ' ios/flutter_compress/Sources/ 2>/dev/null || true)
-check "no Swift 'as!' / 'try!'" "${offenders:+$offenders}"
+offenders=$(grep -rnE ' as! | try! ' "$DARWIN_SRC/" 2>/dev/null || true)
+check "no Darwin Swift 'as!' / 'try!'" "${offenders:+$offenders}"
 
 echo "== §7.2 no unstructured concurrency =="
 offenders=$(grep -rnE 'GlobalScope|runBlocking' android/src/main/kotlin/ 2>/dev/null || true)
@@ -43,16 +45,18 @@ offenders=$(grep -rnE "import 'dart:(html|js|js_util)'" lib/ 2>/dev/null || true
 check "no dart:html / dart:js" "${offenders:+$offenders}"
 
 echo "== §6.4 privacy manifest is present AND packaged =="
-manifest=ios/flutter_compress/Sources/flutter_compress/PrivacyInfo.xcprivacy
+manifest=$DARWIN_SRC/flutter_compress_pro/PrivacyInfo.xcprivacy
 [ -f "$manifest" ] && r="" || r="missing $manifest"
-check "manifest exists" "$r"
-# Listing it in source_files does not package it — resource_bundles is required.
-grep -qE '^\s*s\.resource_bundles' ios/flutter_compress.podspec && r="" \
-  || r="podspec does not declare resource_bundles"
-check "packaged via podspec resource_bundles" "$r"
-grep -qE '\.process\("PrivacyInfo\.xcprivacy"\)' ios/flutter_compress/Package.swift && r="" \
+check "darwin privacy manifest exists" "$r"
+grep -qE '^\s*s\.resource_bundles' darwin/flutter_compress_pro.podspec && r="" \
+  || r="darwin podspec does not declare resource_bundles"
+check "darwin packaged via podspec resource_bundles" "$r"
+grep -qE '\.process\("PrivacyInfo\.xcprivacy"\)' darwin/flutter_compress_pro/Package.swift && r="" \
   || r="Package.swift does not .process() it"
-check "packaged via SPM resources" "$r"
+check "darwin packaged via SPM resources" "$r"
+grep -qE "sharedDarwinSource: true" pubspec.yaml && r="" \
+  || r="pubspec missing sharedDarwinSource"
+check "sharedDarwinSource enabled" "$r"
 
 echo "== §6.2.3 consumer R8 rules are shipped, not just present =="
 [ -f android/consumer-rules.pro ] && r="" || r="missing android/consumer-rules.pro"
@@ -61,23 +65,23 @@ grep -q 'consumerProguardFiles' android/build.gradle.kts && r="" \
   || r="build.gradle.kts never references it, so the file is inert"
 check "wired via consumerProguardFiles" "$r"
 
-echo "== §3.4 error codes identical on all three platforms =="
+echo "== §3.4 error codes identical on Dart / Android / Darwin =="
 d=$(grep -oE "'[a-z_]+'" lib/src/error_codes.dart | tr -d "'" | sort -u)
-k=$(grep -oE '"[a-z_]+"' android/src/main/kotlin/com/compress/all/flutter_compress/ErrorCode.kt | tr -d '"' | sort -u)
-i=$(grep -oE '"[a-z_]+"' ios/flutter_compress/Sources/flutter_compress/ErrorCode.swift | tr -d '"' | sort -u)
-if [ "$d" = "$k" ] && [ "$d" = "$i" ]; then r=""; else
-  r="Dart/Kotlin/Swift sets differ:
+k=$(grep -oE '"[a-z_]+"' android/src/main/kotlin/com/compress/all/flutter_compress_pro/ErrorCode.kt | tr -d '"' | sort -u)
+s=$(grep -oE '"[a-z_]+"' "$DARWIN_SRC/flutter_compress_pro/ErrorCode.swift" | tr -d '"' | sort -u)
+if [ "$d" = "$k" ] && [ "$d" = "$s" ]; then r=""; else
+  r="Dart/Kotlin/Darwin sets differ:
 $(diff <(echo "$d") <(echo "$k") | sed 's/^/       kotlin: /')
-$(diff <(echo "$d") <(echo "$i") | sed 's/^/       swift:  /')"
+$(diff <(echo "$d") <(echo "$s") | sed 's/^/       darwin: /')"
 fi
 check "code sets match" "$r"
 
 echo "== version is consistent across pubspec / podspec / README =="
 v=$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}')
-grep -q "s.version *= *'$v'" ios/flutter_compress.podspec && r="" \
-  || r="podspec is not $v"
-check "podspec matches pubspec ($v)" "$r"
-grep -q "flutter_compress: \^$v" README.md && r="" || r="README.md is not ^$v"
+grep -q "s.version *= *'$v'" darwin/flutter_compress_pro.podspec && r="" \
+  || r="darwin podspec is not $v"
+check "darwin podspec matches pubspec ($v)" "$r"
+grep -q "flutter_compress_pro: \^$v" README.md && r="" || r="README.md is not ^$v"
 check "README matches pubspec" "$r"
 
 echo

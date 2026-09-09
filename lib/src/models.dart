@@ -1,4 +1,4 @@
-// Data models & configuration for flutter_compress.
+// Data models & configuration for flutter_compress_pro.
 //
 // Design goal: express the *intent* of a compression job (a target size, a
 // target bitrate, or a quality tier) rather than a fixed "quality preset".
@@ -56,7 +56,7 @@ enum DimensionAlignment {
 /// A trim window, in milliseconds from the start of the source.
 class TrimRange {
   const TrimRange({required this.startMs, required this.endMs})
-      : assert(endMs > startMs, 'endMs must be greater than startMs');
+    : assert(endMs > startMs, 'endMs must be greater than startMs');
 
   final int startMs;
   final int endMs;
@@ -87,8 +87,8 @@ class AndroidNotification {
     required this.title,
     this.text,
     this.channelName,
-  })  : assert(smallIcon != '', 'smallIcon must name a real resource'),
-        assert(title != '', 'title must not be empty');
+  }) : assert(smallIcon != '', 'smallIcon must name a real resource'),
+       assert(title != '', 'title must not be empty');
 
   /// Resource to use as the status-bar icon, as `"type/name"` — e.g.
   /// `"drawable/ic_compress"` or `"mipmap/ic_launcher"`. A bare `"ic_compress"`
@@ -111,11 +111,11 @@ class AndroidNotification {
   final String? channelName;
 
   Map<String, dynamic> toMap() => {
-        'smallIcon': smallIcon,
-        'title': title,
-        'text': text,
-        'channelName': channelName,
-      };
+    'smallIcon': smallIcon,
+    'title': title,
+    'text': text,
+    'channelName': channelName,
+  };
 }
 
 /// Full compression request.
@@ -143,24 +143,32 @@ class VideoCompressConfig {
     this.container = VideoContainer.auto,
     this.minSavingsPercent = 0,
     this.androidNotification,
-  })  : assert(
-          qualityPercent == null ||
-              (qualityPercent >= 1 && qualityPercent <= 100),
-          'qualityPercent must be between 1 and 100',
-        ),
-        // Without these, a zero or negative value silently reaches the native
-        // side and yields a garbage bitrate instead of an error.
-        assert(targetSizeMB == null || targetSizeMB > 0,
-            'targetSizeMB must be > 0'),
-        assert(videoBitrateKbps == null || videoBitrateKbps > 0,
-            'videoBitrateKbps must be > 0'),
-        assert(audioBitrateKbps == null || audioBitrateKbps > 0,
-            'audioBitrateKbps must be > 0'),
-        assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
-        assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
-        assert(frameRate == null || frameRate > 0, 'frameRate must be > 0'),
-        assert(minSavingsPercent >= 0 && minSavingsPercent < 100,
-            'minSavingsPercent must be 0–99');
+  }) : assert(
+         qualityPercent == null ||
+             (qualityPercent >= 1 && qualityPercent <= 100),
+         'qualityPercent must be between 1 and 100',
+       ),
+       // Without these, a zero or negative value silently reaches the native
+       // side and yields a garbage bitrate instead of an error.
+       assert(
+         targetSizeMB == null || targetSizeMB > 0,
+         'targetSizeMB must be > 0',
+       ),
+       assert(
+         videoBitrateKbps == null || videoBitrateKbps > 0,
+         'videoBitrateKbps must be > 0',
+       ),
+       assert(
+         audioBitrateKbps == null || audioBitrateKbps > 0,
+         'audioBitrateKbps must be > 0',
+       ),
+       assert(maxWidth == null || maxWidth > 0, 'maxWidth must be > 0'),
+       assert(maxHeight == null || maxHeight > 0, 'maxHeight must be > 0'),
+       assert(frameRate == null || frameRate > 0, 'frameRate must be > 0'),
+       assert(
+         minSavingsPercent >= 0 && minSavingsPercent < 100,
+         'minSavingsPercent must be 0–99',
+       );
 
   /// Sized for social platforms: 1080p cap, **H.264** for the widest possible
   /// playback support, and a bitrate that survives the platform's own re-encode.
@@ -171,19 +179,19 @@ class VideoCompressConfig {
     this.maxWidth = 1080,
     this.maxHeight = 1920,
     this.trim,
-  })  : quality = CompressQuality.high,
-        qualityPercent = null,
-        targetSizeMB = null,
-        videoBitrateKbps = 6000,
-        codec = VideoCodec.h264,
-        frameRate = null,
-        removeAudio = false,
-        audioBitrateKbps = 128,
-        alignment = DimensionAlignment.auto16,
-        keepOriginalIfLarger = true,
-        container = VideoContainer.mp4,
-        minSavingsPercent = 0,
-        androidNotification = null;
+  }) : quality = CompressQuality.high,
+       qualityPercent = null,
+       targetSizeMB = null,
+       videoBitrateKbps = 6000,
+       codec = VideoCodec.h264,
+       frameRate = null,
+       removeAudio = false,
+       audioBitrateKbps = 128,
+       alignment = DimensionAlignment.auto16,
+       keepOriginalIfLarger = true,
+       container = VideoContainer.mp4,
+       minSavingsPercent = 0,
+       androidNotification = null;
 
   /// Smallest file that still looks acceptable: 720p cap, H.265, aggressive
   /// bitrate. Use for archival or bandwidth-constrained upload.
@@ -191,20 +199,20 @@ class VideoCompressConfig {
     this.maxWidth = 720,
     this.maxHeight = 1280,
     this.trim,
-  })  : quality = CompressQuality.veryLow,
-        qualityPercent = null,
-        targetSizeMB = null,
-        videoBitrateKbps = null,
-        codec = VideoCodec.h265,
-        frameRate = null,
-        removeAudio = false,
-        audioBitrateKbps = 64,
-        alignment = DimensionAlignment.auto16,
-        keepOriginalIfLarger = true,
-        container = VideoContainer.mp4,
-        // At this quality a marginal win isn't worth a re-encode.
-        minSavingsPercent = 10,
-        androidNotification = null;
+  }) : quality = CompressQuality.veryLow,
+       qualityPercent = null,
+       targetSizeMB = null,
+       videoBitrateKbps = null,
+       codec = VideoCodec.h265,
+       frameRate = null,
+       removeAudio = false,
+       audioBitrateKbps = 64,
+       alignment = DimensionAlignment.auto16,
+       keepOriginalIfLarger = true,
+       container = VideoContainer.mp4,
+       // At this quality a marginal win isn't worth a re-encode.
+       minSavingsPercent = 10,
+       androidNotification = null;
 
   /// Preset quality tier. Used only when [qualityPercent] is null (and no
   /// higher-priority size control is set).
@@ -286,23 +294,23 @@ class VideoCompressConfig {
   final VideoContainer container;
 
   Map<String, dynamic> toMap() => {
-        'quality': quality.name,
-        'qualityPercent': qualityPercent,
-        'targetSizeMB': targetSizeMB,
-        'videoBitrateKbps': videoBitrateKbps,
-        'codec': codec.name,
-        'maxWidth': maxWidth,
-        'maxHeight': maxHeight,
-        'frameRate': frameRate,
-        'removeAudio': removeAudio,
-        'audioBitrateKbps': audioBitrateKbps,
-        'trim': trim?.toMap(),
-        'alignment': alignment.name,
-        'keepOriginalIfLarger': keepOriginalIfLarger,
-        'container': container.name,
-        'minSavingsPercent': minSavingsPercent,
-        'androidNotification': androidNotification?.toMap(),
-      };
+    'quality': quality.name,
+    'qualityPercent': qualityPercent,
+    'targetSizeMB': targetSizeMB,
+    'videoBitrateKbps': videoBitrateKbps,
+    'codec': codec.name,
+    'maxWidth': maxWidth,
+    'maxHeight': maxHeight,
+    'frameRate': frameRate,
+    'removeAudio': removeAudio,
+    'audioBitrateKbps': audioBitrateKbps,
+    'trim': trim?.toMap(),
+    'alignment': alignment.name,
+    'keepOriginalIfLarger': keepOriginalIfLarger,
+    'container': container.name,
+    'minSavingsPercent': minSavingsPercent,
+    'androidNotification': androidNotification?.toMap(),
+  };
 }
 
 /// Metadata about a source (or output) video.
@@ -330,16 +338,16 @@ class VideoInfo {
   final int rotation;
 
   factory VideoInfo.fromMap(Map<dynamic, dynamic> m) => VideoInfo(
-        path: m['path'] as String,
-        width: (m['width'] as num).toInt(),
-        height: (m['height'] as num).toInt(),
-        durationMs: (m['durationMs'] as num).toInt(),
-        sizeBytes: (m['sizeBytes'] as num).toInt(),
-        bitrateKbps: (m['bitrateKbps'] as num).toInt(),
-        frameRate: (m['frameRate'] as num?)?.toDouble(),
-        codec: m['codec'] as String?,
-        rotation: (m['rotation'] as num?)?.toInt() ?? 0,
-      );
+    path: m['path'] as String,
+    width: (m['width'] as num).toInt(),
+    height: (m['height'] as num).toInt(),
+    durationMs: (m['durationMs'] as num).toInt(),
+    sizeBytes: (m['sizeBytes'] as num).toInt(),
+    bitrateKbps: (m['bitrateKbps'] as num).toInt(),
+    frameRate: (m['frameRate'] as num?)?.toDouble(),
+    codec: m['codec'] as String?,
+    rotation: (m['rotation'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// Result of a completed compression.

@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
-import 'package:flutter_compress/flutter_compress.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_compress_pro/flutter_compress_pro.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../app_theme.dart';
@@ -65,11 +65,8 @@ class _ImageCompressPageState extends State<ImageCompressPage> {
 
   Future<void> _pick() async {
     final l10n = AppLocalizations.of(context);
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-      withData: kIsWeb,
-    );
-    final path = result?.files.single.xFile.path;
+    final file = await FilePicker.pickFile(type: FileType.image);
+    final path = file?.xFile.path;
     if (path == null || path.isEmpty) return;
     setState(() {
       _inputPath = path;

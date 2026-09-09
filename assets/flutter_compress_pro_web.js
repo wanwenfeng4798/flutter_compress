@@ -1,5 +1,5 @@
 /*
- * flutter_compress — Web engine (WebCodecs + mp4box.js demux + mp4-muxer mux).
+ * flutter_compress_pro — Web engine (WebCodecs + mp4box.js demux + mp4-muxer mux).
  *
  * Pipeline: fetch blob -> mp4box demux -> VideoDecoder -> (canvas rescale) ->
  * VideoEncoder(target bitrate) -> mp4-muxer -> Blob(mp4) -> object URL.
