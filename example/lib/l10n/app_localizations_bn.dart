@@ -208,11 +208,6 @@ class AppLocalizationsBn extends AppLocalizations {
   String get logPickValidVideoFirst => 'প্রথমে একটি বৈধ ভিডিও নির্বাচন করুন';
 
   @override
-  String logStoragePermission(String status) {
-    return 'স্টোরেজ অনুমতি: $status';
-  }
-
-  @override
   String get logSkipped => 'এড়িয়ে যাওয়া হয়েছে (কম্প্রেশন আকার কমাবে না)';
 
   @override

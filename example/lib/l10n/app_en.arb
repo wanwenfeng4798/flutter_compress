@@ -88,10 +88,6 @@
     "placeholders": { "error": { "type": "String" } }
   },
   "logPickValidVideoFirst": "pick a valid video first",
-  "logStoragePermission": "storage permission: {status}",
-  "@logStoragePermission": {
-    "placeholders": { "status": { "type": "String" } }
-  },
   "logSkipped": "skipped (compression would not reduce size)",
   "logDone": "done: {size} MB (saved {saved}%, {codec})",
   "@logDone": {

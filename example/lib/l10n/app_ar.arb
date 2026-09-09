@@ -59,7 +59,6 @@
   "logEstimate": "تقدير: ~{size} ميغابايت عند {bitrate} كيلوبت/ث -> {width}x{height}",
   "logEstimateError": "خطأ في التقدير: {error}",
   "logPickValidVideoFirst": "اختر فيديو صالحًا أولاً",
-  "logStoragePermission": "إذن التخزين: {status}",
   "logSkipped": "تم التخطي (الضغط لن يقلل الحجم)",
   "logDone": "تم: {size} ميغابايت (توفير {saved}%، {codec})",
   "logSavedToDownloads": "تم الحفظ في التنزيلات: {path}",

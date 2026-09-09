@@ -59,7 +59,6 @@
   "logEstimate": "অনুমান: ~{size} MB, {bitrate} kbps -> {width}x{height}",
   "logEstimateError": "অনুমান ত্রুটি: {error}",
   "logPickValidVideoFirst": "প্রথমে একটি বৈধ ভিডিও নির্বাচন করুন",
-  "logStoragePermission": "স্টোরেজ অনুমতি: {status}",
   "logSkipped": "এড়িয়ে যাওয়া হয়েছে (কম্প্রেশন আকার কমাবে না)",
   "logDone": "সম্পন্ন: {size} MB ({saved}% সাশ্রয়, {codec})",
   "logSavedToDownloads": "ডাউনলোডসে সংরক্ষিত: {path}",

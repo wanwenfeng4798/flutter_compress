@@ -59,7 +59,6 @@
   "logEstimate": "estimativa: ~{size} MB a {bitrate} kbps -> {width}x{height}",
   "logEstimateError": "erro de estimativa: {error}",
   "logPickValidVideoFirst": "escolha um vídeo válido primeiro",
-  "logStoragePermission": "permissão de armazenamento: {status}",
   "logSkipped": "ignorado (a compressão não reduziria o tamanho)",
   "logDone": "concluído: {size} MB (economizou {saved}%, {codec})",
   "logSavedToDownloads": "salvo em Downloads: {path}",

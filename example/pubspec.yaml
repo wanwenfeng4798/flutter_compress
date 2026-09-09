@@ -39,8 +39,6 @@ dependencies:
   # Native file / directory pickers for the demo.
   file_picker: ^12.2.0
 
-  # Runtime permission requests (storage on older Android) for the demo.
-  permission_handler: ^12.0.3
   material_ui: ^1.1.1
 
 dev_dependencies:

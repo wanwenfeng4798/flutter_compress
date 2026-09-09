@@ -59,7 +59,6 @@
   "logEstimate": "अनुमान: ~{size} MB @ {bitrate} kbps -> {width}x{height}",
   "logEstimateError": "अनुमान त्रुटि: {error}",
   "logPickValidVideoFirst": "पहले एक मान्य वीडियो चुनें",
-  "logStoragePermission": "स्टोरेज अनुमति: {status}",
   "logSkipped": "छोड़ा गया (कंप्रेशन से आकार कम नहीं होगा)",
   "logDone": "पूर्ण: {size} MB ({saved}% बचत, {codec})",
   "logSavedToDownloads": "Downloads में सहेजा गया: {path}",

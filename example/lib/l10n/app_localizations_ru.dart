@@ -208,11 +208,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get logPickValidVideoFirst => 'сначала выберите корректное видео';
 
   @override
-  String logStoragePermission(String status) {
-    return 'разрешение на хранилище: $status';
-  }
-
-  @override
   String get logSkipped => 'пропущено (сжатие не уменьшит размер)';
 
   @override

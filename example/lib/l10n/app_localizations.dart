@@ -478,12 +478,6 @@ abstract class AppLocalizations {
   /// **'pick a valid video first'**
   String get logPickValidVideoFirst;
 
-  /// No description provided for @logStoragePermission.
-  ///
-  /// In en, this message translates to:
-  /// **'storage permission: {status}'**
-  String logStoragePermission(String status);
-
   /// No description provided for @logSkipped.
   ///
   /// In en, this message translates to:

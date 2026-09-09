@@ -59,7 +59,6 @@
   "logEstimate": "оценка: ~{size} МБ при {bitrate} кбит/с -> {width}x{height}",
   "logEstimateError": "ошибка оценки: {error}",
   "logPickValidVideoFirst": "сначала выберите корректное видео",
-  "logStoragePermission": "разрешение на хранилище: {status}",
   "logSkipped": "пропущено (сжатие не уменьшит размер)",
   "logDone": "готово: {size} МБ (сэкономлено {saved}%, {codec})",
   "logSavedToDownloads": "сохранено в Загрузки: {path}",

@@ -4,8 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_compress_pro/flutter_compress_pro.dart';
-import 'package:permission_handler/permission_handler.dart';
-
 import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/action_bar.dart';
@@ -116,9 +114,6 @@ class _ImageCompressPageState extends State<ImageCompressPage> {
     }
     setState(() => _busy = true);
     final routeToDownloads = _isAndroid || _outputDir == null;
-    if (routeToDownloads && _isAndroid) {
-      await Permission.storage.request();
-    }
     try {
       final r = await _compressor.compressImage(
         path,

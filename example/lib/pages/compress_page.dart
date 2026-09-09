@@ -4,8 +4,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_compress_pro/flutter_compress_pro.dart';
-import 'package:permission_handler/permission_handler.dart';
-
 import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../models/compress_options.dart';
@@ -140,12 +138,6 @@ class _CompressPageState extends State<CompressPage> {
     }
   }
 
-  Future<void> _ensureStoragePermission(AppLocalizations l10n) async {
-    if (!_isAndroid) return;
-    final status = await Permission.storage.request();
-    _appendLog(l10n.logStoragePermission(status.name));
-  }
-
   // ---- actions -----------------------------------------------------------
 
   Future<void> _info() async {
@@ -199,7 +191,6 @@ class _CompressPageState extends State<CompressPage> {
     });
     _token = CancellationToken();
     final routeToDownloads = _isAndroid || _outputDir == null;
-    if (routeToDownloads) await _ensureStoragePermission(l10n);
     try {
       final result = await _compressor.compress(
         path,

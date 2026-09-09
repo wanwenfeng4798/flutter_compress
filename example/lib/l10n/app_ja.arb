@@ -59,7 +59,6 @@
   "logEstimate": "見積り: 約 {size} MB / {bitrate} kbps -> {width}x{height}",
   "logEstimateError": "見積りエラー: {error}",
   "logPickValidVideoFirst": "先に有効な動画を選択してください",
-  "logStoragePermission": "ストレージ権限: {status}",
   "logSkipped": "スキップ（圧縮してもサイズは減りません）",
   "logDone": "完了: {size} MB（{saved}% 削減, {codec}）",
   "logSavedToDownloads": "ダウンロードに保存: {path}",

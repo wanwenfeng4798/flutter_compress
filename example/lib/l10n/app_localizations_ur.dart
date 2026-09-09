@@ -208,11 +208,6 @@ class AppLocalizationsUr extends AppLocalizations {
   String get logPickValidVideoFirst => 'پہلے ایک درست ویڈیو منتخب کریں';
 
   @override
-  String logStoragePermission(String status) {
-    return 'اسٹوریج اجازت: $status';
-  }
-
-  @override
   String get logSkipped => 'چھوڑ دیا گیا (کمپریشن سے سائز کم نہیں ہوگا)';
 
   @override

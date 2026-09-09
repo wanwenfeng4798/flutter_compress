@@ -209,11 +209,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get logPickValidVideoFirst => 'elige un vídeo válido primero';
 
   @override
-  String logStoragePermission(String status) {
-    return 'permiso de almacenamiento: $status';
-  }
-
-  @override
   String get logSkipped => 'omitido (la compresión no reduciría el tamaño)';
 
   @override

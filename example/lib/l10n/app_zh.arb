@@ -59,7 +59,6 @@
   "logEstimate": "预估：约 {size} MB，{bitrate} kbps -> {width}x{height}",
   "logEstimateError": "预估出错：{error}",
   "logPickValidVideoFirst": "请先选择一个有效的视频",
-  "logStoragePermission": "存储权限：{status}",
   "logSkipped": "已跳过（压缩不会减小体积）",
   "logDone": "完成：{size} MB（节省 {saved}%，{codec}）",
   "logSavedToDownloads": "已保存到下载目录：{path}",

@@ -204,11 +204,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logPickValidVideoFirst => '请先选择一个有效的视频';
 
   @override
-  String logStoragePermission(String status) {
-    return '存储权限：$status';
-  }
-
-  @override
   String get logSkipped => '已跳过（压缩不会减小体积）';
 
   @override

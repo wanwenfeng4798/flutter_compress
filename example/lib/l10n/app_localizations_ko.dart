@@ -204,11 +204,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get logPickValidVideoFirst => '먼저 유효한 동영상을 선택하세요';
 
   @override
-  String logStoragePermission(String status) {
-    return '저장소 권한: $status';
-  }
-
-  @override
   String get logSkipped => '건너뜀 (압축해도 크기가 줄지 않음)';
 
   @override

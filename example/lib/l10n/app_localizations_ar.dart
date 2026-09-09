@@ -207,11 +207,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get logPickValidVideoFirst => 'اختر فيديو صالحًا أولاً';
 
   @override
-  String logStoragePermission(String status) {
-    return 'إذن التخزين: $status';
-  }
-
-  @override
   String get logSkipped => 'تم التخطي (الضغط لن يقلل الحجم)';
 
   @override

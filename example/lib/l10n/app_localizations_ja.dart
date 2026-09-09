@@ -204,11 +204,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get logPickValidVideoFirst => '先に有効な動画を選択してください';
 
   @override
-  String logStoragePermission(String status) {
-    return 'ストレージ権限: $status';
-  }
-
-  @override
   String get logSkipped => 'スキップ（圧縮してもサイズは減りません）';
 
   @override
